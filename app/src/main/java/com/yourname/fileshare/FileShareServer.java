@@ -6,7 +6,6 @@ import fi.iki.elonen.NanoHTTPD;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,11 +19,19 @@ public class FileShareServer extends NanoHTTPD {
 
     private final Context context;
     private final FileStore fileStore;
+    private final File noteFile;
 
     public FileShareServer(Context context, int port) {
         super(port);
         this.context = context;
         this.fileStore = new FileStore(context);
+        this.noteFile = new File(context.getFilesDir(), "notes.json");
+    }
+
+    // Hàm dọn dẹp toàn bộ dữ liệu khi quay lại
+    public void clearAllData() {
+        fileStore.clearAll();
+        if (noteFile.exists()) noteFile.delete();
     }
 
     @Override
@@ -48,9 +55,6 @@ public class FileShareServer extends NanoHTTPD {
             if (Method.GET.equals(method) && "/api/my-ip".equals(uri)) {
                 return jsonResponse("{\"ip\":\"" + NetworkUtils.getLocalIpAddress() + "\"}");
             }
-            if (Method.GET.equals(method) && "/api/is-local".equals(uri)) {
-                return jsonResponse("{\"is_local\":false}");
-            }
             if (Method.GET.equals(method) && "/api/files".equals(uri)) {
                 return listFiles();
             }
@@ -58,15 +62,12 @@ public class FileShareServer extends NanoHTTPD {
                 return downloadFile(uri.substring("/download/".length()));
             }
             
-            // --- CÁC API CHO TEXT ---
+            // --- API VĂN BẢN ---
             if (Method.GET.equals(method) && "/api/text".equals(uri)) {
-                return getText();
+                return getNotes();
             }
-            if (Method.POST.equals(method) && "/api/text".equals(uri)) {
-                return saveText(session);
-            }
-            if (Method.POST.equals(method) && "/api/text/delete".equals(uri)) {
-                return deleteText();
+            if (Method.POST.equals(method) && "/api/text/save".equals(uri)) {
+                return saveNotes(session);
             }
 
             if (Method.POST.equals(method) && "/api/upload".equals(uri)) {
@@ -84,32 +85,28 @@ public class FileShareServer extends NanoHTTPD {
         }
     }
 
-    // ================== TEXT LOGIC ==================
-    private Response getText() {
-        File file = new File(context.getFilesDir(), "note.txt");
-        if (!file.exists()) return jsonResponse("{\"text\":\"\"}");
+    // ================== NOTES LOGIC ==================
+    private Response getNotes() {
+        if (!noteFile.exists()) return jsonResponse("[]");
         try {
-            FileInputStream fis = new FileInputStream(file);
-            byte[] data = new byte[(int) file.length()];
+            FileInputStream fis = new FileInputStream(noteFile);
+            byte[] data = new byte[(int) noteFile.length()];
             fis.read(data); fis.close();
-            String text = new String(data, StandardCharsets.UTF_8);
-            return jsonResponse("{\"text\":\"" + escapeJson(text) + "\"}");
+            return jsonResponse(new String(data, StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return jsonResponse("{\"text\":\"\"}");
+            return jsonResponse("[]");
         }
     }
 
-    private Response saveText(IHTTPSession session) {
+    private Response saveNotes(IHTTPSession session) {
         try {
             Map<String, String> body = new HashMap<>();
             session.parseBody(body);
-            String json = body.get("postData");
-            String text = extractJsonField(json, "text");
-            if (text == null) text = "";
+            String jsonArray = body.get("postData");
+            if (jsonArray == null) jsonArray = "[]";
 
-            File file = new File(context.getFilesDir(), "note.txt");
-            try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(text.getBytes(StandardCharsets.UTF_8));
+            try (FileOutputStream fos = new FileOutputStream(noteFile)) {
+                fos.write(jsonArray.getBytes(StandardCharsets.UTF_8));
             }
             return jsonResponse("{\"ok\":true}");
         } catch (Exception e) {
@@ -117,13 +114,7 @@ public class FileShareServer extends NanoHTTPD {
         }
     }
 
-    private Response deleteText() {
-        File file = new File(context.getFilesDir(), "note.txt");
-        if (file.exists()) file.delete();
-        return jsonResponse("{\"ok\":true}");
-    }
-
-    // ================== FILE LOGIC (Giữ nguyên) ==================
+    // ================== FILE LOGIC ==================
     private Response serveAsset(String name, String mime) {
         try {
             InputStream is = context.getAssets().open(name);
@@ -192,7 +183,7 @@ public class FileShareServer extends NanoHTTPD {
                     while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
                 }
                 fileStore.add(dest);
-                return jsonResponse("{\"ok\":true,\"saved\":[{\"name\":\"" + escapeJson(dest.getName()) + "\"}]}");
+                return jsonResponse("{\"ok\":true}");
             }
             return jsonResponse("{\"ok\":false}");
         } catch (Exception e) {
@@ -226,7 +217,7 @@ public class FileShareServer extends NanoHTTPD {
         String pattern = "\"" + key + "\"\\s*:\\s*\"([^\"]*)\"";
         java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern);
         java.util.regex.Matcher m = p.matcher(json);
-        if (m.find()) return m.group(1).replace("\\n", "\n").replace("\\\"", "\"");
+        if (m.find()) return m.group(1);
         return null;
     }
 }
