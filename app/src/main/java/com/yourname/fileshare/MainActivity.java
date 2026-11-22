@@ -36,17 +36,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 1. Khởi động Server ngầm
         try {
             server = new FileShareServer(this, PORT);
             server.start();
         } catch (IOException e) {
             e.printStackTrace();
-            Toast.makeText(this, "Lỗi khởi động Server", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 2. Cấu hình WebView
         webView = findViewById(R.id.webView);
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
@@ -54,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
 
         webView.setWebViewClient(new WebViewClient());
 
-        // 3. Xử lý sự kiện chọn file (Upload)
+        // Upload
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
@@ -70,30 +67,36 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 4. Xử lý sự kiện tải file (Download) - ĐÂY LÀ ĐOẠN MỚI
+        // Download
         webView.setDownloadListener(new DownloadListener() {
             @Override
             public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
                 try {
                     DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-                    
-                    // Cấu hình thông báo
                     request.setMimeType(mimeType);
                     request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
                     
-                    // Đặt tên file
+                    // SỬA Ở ĐÂY: Lấy tên file từ Content-Disposition hoặc URL
                     String filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                    
+                    // Nếu URLUtil vẫn trả về 0.bin, ta tự cắt tên file từ URL
+                    if (filename.endsWith(".bin")) {
+                        String[] parts = url.split("/");
+                        if (parts.length > 0) {
+                            filename = parts[parts.length - 1];
+                            // Decode URL (ví dụ %20 thành khoảng trắng)
+                            filename = android.net.Uri.decode(filename);
+                        }
+                    }
+
                     request.setTitle(filename);
                     request.setDescription("Đang tải file...");
-                    
-                    // Lưu vào thư mục Download của điện thoại
                     request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
 
-                    // Bắt đầu tải
                     DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
                     if (dm != null) {
                         dm.enqueue(request);
-                        Toast.makeText(MainActivity.this, "Đang bắt đầu tải: " + filename, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "Đang tải: " + filename, Toast.LENGTH_SHORT).show();
                     }
                 } catch (Exception e) {
                     Toast.makeText(MainActivity.this, "Lỗi tải file: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -101,7 +104,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 5. Load giao diện
         webView.loadUrl("http://localhost:" + PORT);
     }
 
