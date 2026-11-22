@@ -53,6 +53,7 @@ public class FileShareServer extends NanoHTTPD {
                 return listFiles();
             }
 
+            // Sửa lại phần bắt route Download để nhận được cả ID và Tên file
             if (Method.GET.equals(method) && uri.startsWith("/download/")) {
                 return downloadFile(uri.substring("/download/".length()));
             }
@@ -77,7 +78,9 @@ public class FileShareServer extends NanoHTTPD {
     private Response serveAsset(String name) {
         try {
             InputStream is = context.getAssets().open(name);
-            return newChunkedResponse(Response.Status.OK, MIME_HTML, is);
+            Response r = newChunkedResponse(Response.Status.OK, MIME_HTML, is);
+            r.addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+            return r;
         } catch (IOException e) {
             return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT,
                     "Asset not found: " + name);
@@ -101,14 +104,21 @@ public class FileShareServer extends NanoHTTPD {
               .append("\"idx\":").append(i).append(",")
               .append("\"name\":\"").append(escapeJson(f.getName())).append("\",")
               .append("\"size\":").append(f.length()).append(",")
-              .append("\"url\":\"/download/").append(i).append("\"")
+              // SỬA Ở ĐÂY: Thêm tên file vào sau chỉ số ID để WebView biết đuôi file
+              .append("\"url\":\"/download/").append(i).append("/").append(urlEncode(f.getName())).append("\"")
               .append("}");
         }
         sb.append("]}");
         return jsonResponse(sb.toString());
     }
 
-    private Response downloadFile(String idxStr) {
+    private Response downloadFile(String urlPath) {
+        String idxStr = urlPath;
+        // Nếu URL có dạng 0/ten-file.pdf, ta chỉ lấy phần số "0"
+        if (urlPath.contains("/")) {
+            idxStr = urlPath.split("/")[0];
+        }
+        
         int idx;
         try {
             idx = Integer.parseInt(idxStr);
@@ -125,8 +135,9 @@ public class FileShareServer extends NanoHTTPD {
         try {
             FileInputStream fis = new FileInputStream(file);
             Response r = newChunkedResponse(Response.Status.OK, "application/octet-stream", fis);
-            r.addHeader("Content-Disposition",
-                    "attachment; filename*=UTF-8''" + urlEncode(file.getName()));
+            
+            // SỬA Ở ĐÂY: Header chuẩn để Android nhận diện đúng tên file
+            r.addHeader("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"");
             r.addHeader("Content-Length", String.valueOf(file.length()));
             return r;
         } catch (FileNotFoundException e) {
@@ -203,11 +214,7 @@ public class FileShareServer extends NanoHTTPD {
 
     private static String escapeJson(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private static String urlEncode(String s) {
