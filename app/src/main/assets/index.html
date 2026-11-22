@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File Share</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height:100vh; padding:20px;
+}
+.container {
+    background:white; border-radius:20px; padding:25px;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+    max-width:700px; margin:0 auto;
+}
+h1 { color:#333; text-align:center; margin-bottom:20px; font-size:24px; }
+.panel {
+    background:#fafafa; border-radius:14px; padding:18px;
+    border:1px solid #eee; margin-bottom:16px;
+}
+.panel h2 {
+    color:#333; font-size:16px; margin-bottom:12px;
+    display:flex; align-items:center; gap:8px;
+}
+button {
+    padding:13px 22px; border:none; border-radius:10px;
+    font-size:15px; font-weight:600; cursor:pointer;
+    transition:all .3s; display:flex; align-items:center;
+    gap:8px; justify-content:center; width:100%;
+    background:#4CAF50; color:white;
+}
+button:hover { background:#45a049; }
+button:disabled { opacity:.6; cursor:wait; }
+.upload-input { display:none; }
+.file-item {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 15px; background:white; border-radius:8px;
+    margin-bottom:10px; border-left:4px solid #2196F3; gap:8px;
+}
+.file-info { display:flex; align-items:center; gap:10px;
+             flex:1; min-width:0; }
+.file-icon { font-size:24px; flex-shrink:0; }
+.file-details { min-width:0; flex:1; }
+.file-name {
+    color:#333; font-weight:500; font-size:14px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.file-size { color:#999; font-size:12px; margin-top:2px; }
+.file-actions { display:flex; gap:4px; flex-shrink:0; }
+.download-link, .delete-btn {
+    color:#2196F3; text-decoration:none; font-size:20px;
+    padding:8px; border-radius:50%; transition:all .2s;
+    display:flex; align-items:center; justify-content:center;
+    width:40px; height:40px; cursor:pointer;
+    background:transparent; border:none; flex:0 0 40px;
+}
+.download-link:hover { background:#2196F3; color:white; }
+.delete-btn { color:#f44336; font-size:18px; }
+.delete-btn:hover { background:#f44336; color:white; }
+.empty-message {
+    text-align:center; color:#999; padding:20px;
+    font-style:italic; font-size:14px;
+}
+.file-count { font-size:12px; color:#888; font-weight:400; }
+.toast {
+    position:fixed; bottom:20px; left:50%;
+    transform:translateX(-50%) translateY(100px);
+    background:#333; color:white; padding:12px 24px;
+    border-radius:8px; opacity:0; transition:all .3s;
+    z-index:1000; font-size:14px;
+}
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>📁 File Share</h1>
+
+    <div class="panel">
+        <h2>📤 Upload Files</h2>
+        <button id="uploadBtn" onclick="pickFiles()">
+            <span>📤</span> Chọn file từ điện thoại
+        </button>
+        <input type="file" id="fileInput" class="upload-input" multiple>
+        <p style="font-size:12px; color:#888; margin-top:10px;">
+            💡 Bấm Upload → chọn file từ điện thoại này → file được share cho mọi máy cùng WiFi.
+        </p>
+    </div>
+
+    <div class="panel">
+        <h2>
+            📋 File đang share
+            <span class="file-count" id="fileCount"></span>
+        </h2>
+        <div id="filesContainer">
+            <p class="empty-message">Đang tải...</p>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast">OK</div>
+
+<script>
+function pickFiles() {
+    document.getElementById('fileInput').click();
+}
+
+document.getElementById('fileInput').addEventListener('change', async function (e) {
+    const files = e.target.files;
+    if (!files.length) return;
+
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Đang upload...';
+
+    showToast(`Đang upload ${files.length} file...`);
+
+    try {
+        const res = await fetch('/api/upload', { method: 'POST', body: form });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`✅ Đã upload ${data.saved.length} file`);
+            await loadFileList();
+        } else {
+            showToast('❌ ' + (data.error || 'Lỗi'));
+        }
+    } catch (err) {
+        showToast('❌ Upload lỗi: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>📤</span> Chọn file từ điện thoại';
+        e.target.value = '';
+    }
+});
+
+async function loadFileList() {
+    const container = document.getElementById('filesContainer');
+    const countEl = document.getElementById('fileCount');
+
+    try {
+        const res = await fetch('/api/files', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        countEl.textContent = data.files.length
+            ? `(${data.files.length} file)` : '';
+
+        if (data.files.length === 0) {
+            container.innerHTML =
+                '<p class="empty-message">Chưa có file nào. Bấm Upload để chọn file!</p>';
+            return;
+        }
+
+        container.innerHTML = data.files.map(file => `
+            <div class="file-item">
+                <div class="file-info">
+                    <span class="file-icon">${getFileIcon(file.name)}</span>
+                    <div class="file-details">
+                        <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+                        <div class="file-size">${formatSize(file.size)}</div>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    <a href="${file.url}" download="${escapeHtml(file.name)}"
+                       class="download-link" title="Tải xuống">⬇️</a>
+                    <button class="delete-btn" title="Xoá"
+                            onclick="removeFile('${escapeJs(file.name)}')">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        container.innerHTML =
+            '<p class="empty-message">⚠️ Lỗi: ' + err.message + '</p>';
+    }
+}
+
+async function removeFile(name) {
+    if (!confirm(`Bỏ share file "${name}"?`)) return;
+    try {
+        const res = await fetch('/api/remove-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast('🗑️ Đã xoá');
+            await loadFileList();
+        } else {
+            showToast('❌ ' + (data.error || 'Lỗi'));
+        }
+    } catch (err) {
+        showToast('❌ ' + err.message);
+    }
+}
+
+function escapeHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeJs(s) {
+    return String(s)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, '\\n');
+}
+
+function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const icons = {
+        pdf:'📕', doc:'📘', docx:'📘', xls:'📗', xlsx:'📗',
+        ppt:'📙', pptx:'📙', txt:'📄', zip:'🗜️', rar:'🗜️',
+        jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️', svg:'🖼️',
+        webp:'🖼️', heic:'🖼️', mp3:'🎵', wav:'🎵', m4a:'🎵',
+        mp4:'🎬', avi:'🎬', mkv:'🎬', mov:'🎬', webm:'🎬',
+        exe:'⚙️', js:'💻', html:'💻', css:'💻', json:'💻', py:'💻'
+    };
+    return icons[ext] || '📎';
+}
+
+function formatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+// Load khi mở trang
+window.addEventListener('DOMContentLoaded', () => {
+    loadFileList();
+    setInterval(loadFileList, 5000);
+});
+</script>
+</body>
+</html>
