@@ -4,14 +4,7 @@
     android:layout_height="match_parent"
     android:background="#ffffff">
 
-    <!-- GIAO DIỆN WEB -->
-    <WebView
-        android:id="@+id/webView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" />
-
-    <!-- MÀN HÌNH CHỌN CHẾ ĐỘ -->
+    <!-- MÀN HÌNH CHỌN CHẾ ĐỘ BAN ĐẦU -->
     <LinearLayout
         android:id="@+id/selectionLayout"
         android:layout_width="match_parent"
@@ -48,6 +41,52 @@
             android:textSize="18sp"
             android:backgroundTint="#2196F3"
             android:textColor="#ffffff"/>
-
     </LinearLayout>
+
+    <!-- MÀN HÌNH WEBVIEW -->
+    <LinearLayout
+        android:id="@+id/webLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- THANH TOP BAR CHỨA NÚT BACK -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="#667eea"
+            android:gravity="center_vertical"
+            android:padding="8dp"
+            android:elevation="4dp">
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⬅️ Quay lại"
+                android:textColor="#ffffff"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:textSize="16sp"/>
+                
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="File Share"
+                android:textColor="#ffffff"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:gravity="center"/>
+            
+            <!-- Khoảng trống để cân bằng layout -->
+            <View android:layout_width="80dp" android:layout_height="1dp"/>
+        </LinearLayout>
+
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </LinearLayout>
+
 </RelativeLayout>
