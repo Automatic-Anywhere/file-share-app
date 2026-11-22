@@ -4,9 +4,50 @@
     android:layout_height="match_parent"
     android:background="#ffffff">
 
+    <!-- GIAO DIỆN WEB -->
     <WebView
         android:id="@+id/webView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
+    <!-- MÀN HÌNH CHỌN CHẾ ĐỘ -->
+    <LinearLayout
+        android:id="@+id/selectionLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="30dp"
+        android:background="#667eea">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📁 File Share App"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:textColor="#ffffff"
+            android:layout_marginBottom="50dp"/>
+
+        <Button
+            android:id="@+id/btnHost"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="🟢 Mở Server (Host)"
+            android:textSize="18sp"
+            android:backgroundTint="#4CAF50"
+            android:textColor="#ffffff"
+            android:layout_marginBottom="20dp"/>
+
+        <Button
+            android:id="@+id/btnClient"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="🔵 Tham gia Server (Client)"
+            android:textSize="18sp"
+            android:backgroundTint="#2196F3"
+            android:textColor="#ffffff"/>
+
+    </LinearLayout>
 </RelativeLayout>
