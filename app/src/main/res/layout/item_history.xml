@@ -9,7 +9,15 @@
     android:elevation="2dp"
     android:layout_marginBottom="8dp">
 
-    <!-- Nút Xóa được đưa lên đầu (bên trái) -->
+    <!-- Chấm tròn trạng thái -->
+    <View
+        android:id="@+id/viewStatus"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:background="@drawable/circle_red"
+        android:layout_marginRight="15dp" />
+
+    <!-- Nút Xóa -->
     <Button
         android:id="@+id/btnDelete"
         android:layout_width="40dp"
