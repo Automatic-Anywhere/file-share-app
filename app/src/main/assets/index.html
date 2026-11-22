@@ -29,7 +29,9 @@
         .file-info { display:flex; flex-direction:column; flex:1; }
         .file-name { font-weight:bold; font-size:14px; color:#333; word-break:break-all; }
         .file-size { font-size:12px; color:#888; }
-        .file-actions a { font-size:20px; text-decoration:none; cursor:pointer; }
+        .file-actions { display:flex; gap:10px; align-items:center; }
+        .file-actions a { font-size:22px; text-decoration:none; cursor:pointer; }
+        .file-actions button { font-size:20px; background:none; border:none; cursor:pointer; padding:0; }
         .upload-input { display:none; }
 
         /* TAB TEXT */
@@ -93,7 +95,7 @@
         </div>
     </div>
 
-    <!-- POPUP CHỈNH SỬA -->
+    <!-- POPUP CHỈNH SỬA VĂN BẢN -->
     <div id="editModal">
         <div class="modal-content">
             <h3 style="color:#333;">Chỉnh sửa văn bản</h3>
@@ -128,26 +130,44 @@
             try {
                 const res = await fetch('/api/files');
                 const data = await res.json();
-                if (data.files.length === 0) { container.innerHTML = '<p style="text-align:center;color:#999;">Chưa có file.</p>'; return; }
+                if (data.files.length === 0) { 
+                    container.innerHTML = '<p style="text-align:center;color:#999;">Chưa có file.</p>'; 
+                    return; 
+                }
                 container.innerHTML = data.files.map(f => `
                     <div class="file-item">
                         <div class="file-info">
                             <span class="file-name">📎 ${f.name}</span>
                             <span class="file-size">${(f.size/1024).toFixed(1)} KB</span>
                         </div>
-                        <div class="file-actions"><a href="${f.url}" download="${f.name}">⬇️</a></div>
+                        <div class="file-actions">
+                            <a href="${f.url}" download="${f.name}" title="Tải xuống">⬇️</a>
+                            <button onclick="deleteFile('${f.name}')" title="Xoá file">🗑️</button>
+                        </div>
                     </div>
                 `).join('');
             } catch (err) {}
         }
 
+        async function deleteFile(name) {
+            if (!confirm(`Bạn có chắc muốn xoá file "${name}"?`)) return;
+            try {
+                await fetch('/api/remove-file', {
+                    method: 'POST',
+                    body: JSON.stringify({ name: name })
+                });
+                await loadFileList(); // Cập nhật lại danh sách
+            } catch (err) {
+                alert('Lỗi khi xoá file!');
+            }
+        }
+
         // ==================== NOTES & SYNC ====================
         let notesList = [];
         let currentEditIndex = -1;
-        let isTyping = false; // Cờ đánh dấu xem người dùng đang gõ hay không
+        let isTyping = false;
 
         async function fetchNotesFromServer(isAutoRefresh = false) {
-            // Nếu đang mở popup (đang gõ) thì không làm mới để tránh mất chữ
             if (isAutoRefresh && (currentEditIndex !== -1 || isTyping)) return;
 
             try {
@@ -155,7 +175,6 @@
                 const data = await res.json();
                 const newData = Array.isArray(data) ? data : [];
 
-                // So sánh dữ liệu mới với dữ liệu cũ. Nếu khác thì mới vẽ lại
                 if (JSON.stringify(newData) !== JSON.stringify(notesList)) {
                     notesList = newData;
                     renderNotes();
@@ -192,7 +211,7 @@
             await syncNotesToServer();
             currentEditIndex = notesList.length - 1;
             renderNotes();
-            openModal(currentEditIndex); // Mở luôn popup cho tiện
+            openModal(currentEditIndex);
         }
 
         async function deleteNote(index) {
@@ -222,19 +241,18 @@
             document.getElementById('modalTextarea').value = notesList[index] || "";
             document.getElementById('editModal').style.display = 'flex';
             
-            // Lắng nghe sự kiện gõ phím để bật cờ isTyping
             document.getElementById('modalTextarea').addEventListener('input', () => {
                 isTyping = true;
             });
             
-            renderNotes(); // Cập nhật màu đỏ
+            renderNotes();
         }
 
         function closeModal() {
             document.getElementById('editModal').style.display = 'none';
             currentEditIndex = -1;
             isTyping = false;
-            renderNotes(); // Trở về màu bình thường
+            renderNotes();
         }
 
         async function saveModal() {
@@ -251,11 +269,11 @@
             
             const savedItem = document.getElementById('note-item-' + savedIndex);
             if (savedItem) {
-                savedItem.classList.add('saved'); // Màu xanh
+                savedItem.classList.add('saved');
                 setTimeout(() => savedItem.classList.remove('saved'), 1500);
             }
 
-            await syncNotesToServer(); // Lưu lên server ngay lập tức
+            await syncNotesToServer();
         }
 
         // ==================== SHARE ====================
@@ -277,10 +295,9 @@
         // Khởi tạo
         window.addEventListener('DOMContentLoaded', () => {
             loadFileList();
-            fetchNotesFromServer(); // Tải lần đầu
+            fetchNotesFromServer();
             loadShareInfo();
             
-            // Tự động đồng bộ mỗi 3 giây
             setInterval(loadFileList, 5000);
             setInterval(() => fetchNotesFromServer(true), 3000);
         });
