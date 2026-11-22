@@ -1,9 +1,15 @@
 package com.yourname.fileshare;
 
 import android.annotation.SuppressLint;
+import android.app.DownloadManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
+import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -48,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
 
         webView.setWebViewClient(new WebViewClient());
 
-        // 3. ĐÂY LÀ CHÌA KHÓA: Xử lý sự kiện chọn file
+        // 3. Xử lý sự kiện chọn file (Upload)
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
@@ -64,11 +70,41 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 4. Load giao diện
+        // 4. Xử lý sự kiện tải file (Download) - ĐÂY LÀ ĐOẠN MỚI
+        webView.setDownloadListener(new DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
+                try {
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                    
+                    // Cấu hình thông báo
+                    request.setMimeType(mimeType);
+                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    
+                    // Đặt tên file
+                    String filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                    request.setTitle(filename);
+                    request.setDescription("Đang tải file...");
+                    
+                    // Lưu vào thư mục Download của điện thoại
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+
+                    // Bắt đầu tải
+                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                    if (dm != null) {
+                        dm.enqueue(request);
+                        Toast.makeText(MainActivity.this, "Đang bắt đầu tải: " + filename, Toast.LENGTH_SHORT).show();
+                    }
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Lỗi tải file: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+
+        // 5. Load giao diện
         webView.loadUrl("http://localhost:" + PORT);
     }
 
-    // Hàm nhận kết quả sau khi người dùng chọn file xong
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == FILE_CHOOSER_REQUEST) {
