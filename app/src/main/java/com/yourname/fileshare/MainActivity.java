@@ -5,7 +5,6 @@ import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -81,9 +80,11 @@ public class MainActivity extends AppCompatActivity {
         webLayout = findViewById(R.id.webLayout);
         clientLayout = findViewById(R.id.clientLayout);
 
+        // --- MÀN HÌNH CHỌN ---
         findViewById(R.id.btnHost).setOnClickListener(v -> startHostMode());
         findViewById(R.id.btnClient).setOnClickListener(v -> showClientMode());
 
+        // --- MÀN HÌNH CLIENT ---
         findViewById(R.id.btnBackToSelection).setOnClickListener(v -> {
             clientLayout.setVisibility(View.GONE);
             selectionLayout.setVisibility(View.VISIBLE);
@@ -127,12 +128,10 @@ public class MainActivity extends AppCompatActivity {
                     viewStatus.setBackgroundResource(R.drawable.circle_red);
                 }
                 
-                // Click vào dòng
                 convertView.setOnClickListener(v -> {
                     if (isActuallyOnline) {
                         connectToServer(url);
                     } else {
-                        // Báo lỗi nếu đèn đỏ
                         Toast.makeText(MainActivity.this, "Lỗi: Server này hiện không hoạt động (Đèn đỏ)!", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -247,15 +246,12 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         
-        // BẮT SỰ KIỆN LỖI TẢI TRANG (Nếu URL đột ngột mất mạng)
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
-                // Chỉ báo lỗi nếu là trang chính (không phải ảnh, css...)
                 if (request.isForMainFrame()) {
                     Toast.makeText(MainActivity.this, "Không thể kết nối đến Server!", Toast.LENGTH_LONG).show();
-                    // Tự động quay lại màn hình chọn
                     webLayout.setVisibility(View.GONE);
                     clientLayout.setVisibility(View.VISIBLE);
                     pingHandler.post(pingRunnable);
@@ -274,22 +270,42 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // CẬP NHẬT LOGIC DOWNLOAD TẠI ĐÂY
         webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
             try {
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
                 request.setMimeType(mimeType);
                 request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                
                 String filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
-                if (filename.endsWith(".bin") || filename.startsWith("download")) {
+                
+                // Nếu tên file bị lỗi (chỉ là số hoặc đuôi .bin) -> Cắt từ URL
+                if (filename.endsWith(".bin") || filename.matches("^\\d+$") || !filename.contains(".")) {
                     String[] parts = url.split("/");
-                    if (parts.length > 0) filename = android.net.Uri.decode(parts[parts.length - 1]);
+                    if (parts.length > 0) {
+                        String lastPart = parts[parts.length - 1];
+                        if (lastPart.contains("?")) lastPart = lastPart.split("\\?")[0];
+                        
+                        filename = android.net.Uri.decode(lastPart);
+                        
+                        if (!filename.contains(".")) {
+                            filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                        }
+                    }
                 }
+
                 request.setTitle(filename);
                 request.setDescription("Đang tải file...");
                 request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+                
                 DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-                if (dm != null) { dm.enqueue(request); Toast.makeText(this, "Đang tải: " + filename, Toast.LENGTH_SHORT).show(); }
-            } catch (Exception e) { Toast.makeText(this, "Lỗi tải file", Toast.LENGTH_LONG).show(); }
+                if (dm != null) { 
+                    dm.enqueue(request); 
+                    Toast.makeText(this, "Đang tải: " + filename, Toast.LENGTH_SHORT).show(); 
+                }
+            } catch (Exception e) { 
+                Toast.makeText(this, "Lỗi tải file", Toast.LENGTH_LONG).show(); 
+            }
         });
     }
 
