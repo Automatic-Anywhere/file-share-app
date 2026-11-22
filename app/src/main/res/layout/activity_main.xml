@@ -43,6 +43,90 @@
             android:textColor="#ffffff"/>
     </LinearLayout>
 
+    <!-- MÀN HÌNH THAM GIA SERVER (CLIENT) -->
+    <LinearLayout
+        android:id="@+id/clientLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:background="#f0f2f5"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tham gia Server"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#333"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Nhập IP thủ công -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="20dp">
+
+            <EditText
+                android:id="@+id/etIpAddress"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:hint="VD: 192.168.1.15:8000"
+                android:padding="10dp"
+                android:background="@android:drawable/edit_text"
+                android:inputType="textUri"
+                android:layout_marginRight="10dp"/>
+
+            <Button
+                android:id="@+id/btnConnectIp"
+                android:layout_width="wrap_content"
+                android:layout_height="50dp"
+                android:text="Kết nối"
+                android:backgroundTint="#2196F3"
+                android:textColor="#ffffff"/>
+        </LinearLayout>
+
+        <!-- Nút Quét QR -->
+        <Button
+            android:id="@+id/btnScanQr"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="📷 Quét mã QR của Server"
+            android:backgroundTint="#ff9800"
+            android:textColor="#ffffff"
+            android:layout_marginBottom="20dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Lịch sử kết nối"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#666"
+            android:layout_marginBottom="10dp"/>
+
+        <!-- Danh sách lịch sử -->
+        <ListView
+            android:id="@+id/lvHistory"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="10dp"/>
+
+        <!-- Nút quay lại màn hình chọn -->
+        <Button
+            android:id="@+id/btnBackToSelection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⬅️ Quay lại"
+            android:backgroundTint="#9e9e9e"
+            android:textColor="#ffffff"
+            android:layout_marginTop="20dp"/>
+    </LinearLayout>
+
     <!-- MÀN HÌNH WEBVIEW -->
     <LinearLayout
         android:id="@+id/webLayout"
@@ -51,7 +135,6 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- THANH TOP BAR CHỨA NÚT BACK -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -79,7 +162,6 @@
                 android:textStyle="bold"
                 android:gravity="center"/>
             
-            <!-- Khoảng trống để cân bằng layout -->
             <View android:layout_width="80dp" android:layout_height="1dp"/>
         </LinearLayout>
 
