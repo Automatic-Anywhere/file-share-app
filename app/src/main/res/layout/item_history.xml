@@ -27,14 +27,19 @@
         android:textColor="#333"
         android:text="http://192.168.1.15:8000" />
 
-    <!-- Nút Xóa (Đưa về bên phải) -->
+    <!-- Nút Xóa (Đã tăng kích thước để không bị che icon) -->
     <Button
         android:id="@+id/btnDelete"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:text="🗑️"
+        android:padding="0dp"
+        android:insetLeft="0dp"
+        android:insetTop="0dp"
+        android:insetRight="0dp"
+        android:insetBottom="0dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:textSize="20sp"
+        android:textSize="24sp"
         android:layout_marginLeft="15dp" />
 
 </LinearLayout>
