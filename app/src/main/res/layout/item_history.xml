@@ -17,17 +17,7 @@
         android:background="@drawable/circle_red"
         android:layout_marginRight="15dp" />
 
-    <!-- Nút Xóa -->
-    <Button
-        android:id="@+id/btnDelete"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:text="🗑️"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:textSize="20sp"
-        android:layout_marginRight="30dp" />
-
-    <!-- Đường dẫn URL -->
+    <!-- Đường dẫn URL (Nằm ở giữa) -->
     <TextView
         android:id="@+id/tvUrl"
         android:layout_width="0dp"
@@ -36,5 +26,15 @@
         android:textSize="14sp"
         android:textColor="#333"
         android:text="http://192.168.1.15:8000" />
+
+    <!-- Nút Xóa (Đưa về bên phải) -->
+    <Button
+        android:id="@+id/btnDelete"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:text="🗑️"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:textSize="20sp"
+        android:layout_marginLeft="15dp" />
 
 </LinearLayout>
