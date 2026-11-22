@@ -6,8 +6,20 @@
     android:padding="12dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:elevation="2dp">
+    android:elevation="2dp"
+    android:layout_marginBottom="8dp">
 
+    <!-- Nút Xóa được đưa lên đầu (bên trái) -->
+    <Button
+        android:id="@+id/btnDelete"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:text="🗑️"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:textSize="20sp"
+        android:layout_marginRight="30dp" />
+
+    <!-- Đường dẫn URL -->
     <TextView
         android:id="@+id/tvUrl"
         android:layout_width="0dp"
@@ -16,13 +28,5 @@
         android:textSize="14sp"
         android:textColor="#333"
         android:text="http://192.168.1.15:8000" />
-
-    <Button
-        android:id="@+id/btnDelete"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:text="🗑️"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:textSize="20sp" />
 
 </LinearLayout>
