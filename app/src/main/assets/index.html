@@ -4,125 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Share App</title>
-
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box;
-            font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height:100vh; display:flex; justify-content:center;
-            align-items:flex-start; padding:20px 15px;
-        }
-
-        .container {
-            background:white; border-radius:20px; padding:25px;
-            box-shadow:0 20px 60px rgba(0,0,0,.3);
-            width:100%; max-width:1100px;
-        }
-
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height:100vh; display:flex; justify-content:center; padding:20px 15px; }
+        .container { background:white; border-radius:20px; padding:25px; box-shadow:0 20px 60px rgba(0,0,0,.3); width:100%; max-width:1100px; }
         h1 { color:#333; text-align:center; margin-bottom:25px; font-size:24px; }
-
-        .layout {
-            display:grid;
-            grid-template-columns: 1fr 1fr;
-            gap:20px;
-        }
+        .layout { display:grid; grid-template-columns: 1fr 1fr; gap:20px; }
         @media (max-width: 850px) { .layout { grid-template-columns: 1fr; } }
-
         .col { display:flex; flex-direction:column; gap:15px; }
-
-        .panel {
-            background:#fafafa; border-radius:14px; padding:20px;
-            border:1px solid #eee;
-        }
-
-        .panel h2 {
-            color:#333; font-size:16px; margin-bottom:15px;
-            display:flex; align-items:center; gap:8px;
-        }
-
+        .panel { background:#fafafa; border-radius:14px; padding:20px; border:1px solid #eee; }
+        .panel h2 { color:#333; font-size:16px; margin-bottom:15px; display:flex; align-items:center; gap:8px; }
         .buttons { display:flex; gap:12px; flex-wrap:wrap; }
-
-        button {
-            padding:13px 22px; border:none; border-radius:10px;
-            font-size:15px; font-weight:600; cursor:pointer;
-            transition:all .3s; display:flex; align-items:center;
-            gap:8px; justify-content:center;
-        }
-
+        button { padding:13px 22px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; transition:all .3s; display:flex; align-items:center; gap:8px; justify-content:center; }
         .btn-upload { background:#4CAF50; color:white; flex:1; }
-        .btn-upload:hover { background:#45a049; transform:translateY(-2px);
-                            box-shadow:0 5px 15px rgba(76,175,80,.4); }
-        .btn-upload:disabled { opacity:.6; cursor:wait; }
-
         .btn-refresh { background:#607d8b; color:white; flex:0 0 auto; }
-        .btn-refresh:hover { background:#455a64; }
-
-        .file-list { display:block; }
-
-        .file-item {
-            display:flex; align-items:center; justify-content:space-between;
-            padding:12px 15px; background:white; border-radius:8px;
-            margin-bottom:10px; transition:all .2s;
-            border-left:4px solid #2196F3;
-            gap:8px;
-        }
-        .file-item:hover { background:#eef6ff; transform:translateX(3px); }
-
-        .file-info { display:flex; align-items:center; gap:10px;
-                     flex:1; min-width:0; }
-        .file-icon { font-size:24px; flex-shrink:0; }
+        .link-box { display:block; }
+        .link-box p { color:#666; font-size:13px; margin-bottom:10px; }
+        .link-box .url { background:white; padding:12px; border-radius:8px; font-family:'Courier New', monospace; color:#2196F3; font-weight:600; word-break:break-all; border:1px solid #ddd; display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; }
+        .copy-btn { background:#2196F3; color:white; border:none; padding:7px 14px; border-radius:6px; cursor:pointer; font-size:12px; }
+        .qr-wrap { display:flex; flex-direction:column; align-items:center; gap:12px; padding:18px; background:white; border-radius:12px; border:2px dashed #ff9800; }
+        .file-item { display:flex; align-items:center; justify-content:space-between; padding:12px 15px; background:white; border-radius:8px; margin-bottom:10px; border-left:4px solid #2196F3; gap:8px; }
+        .file-info { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+        .file-icon { font-size:24px; }
         .file-details { min-width:0; flex:1; }
-
-        .file-name {
-            color:#333; font-weight:500; font-size:14px;
-            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-        }
+        .file-name { color:#333; font-weight:500; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .file-size { color:#999; font-size:12px; margin-top:2px; }
-
-        .file-actions {
-            display:flex; gap:4px; flex-shrink:0; align-items:center;
-        }
-
-        .download-link, .delete-btn {
-            color:#2196F3; text-decoration:none; font-size:20px;
-            padding:8px; border-radius:50%; transition:all .2s;
-            display:flex; align-items:center; justify-content:center;
-            width:40px; height:40px; cursor:pointer;
-            background:transparent; border:none;
-            flex:0 0 40px;
-        }
-        .download-link:hover { background:#2196F3; color:white;
-                                transform:scale(1.1); }
-
-        .delete-btn { color:#f44336; font-size:18px; }
-        .delete-btn:hover { background:#f44336; color:white;
-                            transform:scale(1.1); }
-
-        .empty-message { text-align:center; color:#999; padding:25px;
-                         font-style:italic; font-size:14px; }
-
-        .toast {
-            position:fixed; bottom:30px; left:50%;
-            transform:translateX(-50%) translateY(100px);
-            background:#333; color:white; padding:12px 24px;
-            border-radius:8px; opacity:0; transition:all .3s;
-            z-index:1000; font-size:14px;
-        }
+        .file-actions { display:flex; gap:4px; }
+        .download-link, .delete-btn { color:#2196F3; text-decoration:none; font-size:20px; padding:8px; border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:none; background:transparent; }
+        .delete-btn { color:#f44336; }
+        .empty-message { text-align:center; color:#999; padding:25px; font-style:italic; font-size:14px; }
+        .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(100px); background:#333; color:white; padding:12px 24px; border-radius:8px; opacity:0; transition:all .3s; z-index:1000; }
         .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
-
-        .file-count { font-size:12px; color:#888; font-weight:400; }
-        .hint-small { font-size:12px; color:#888; margin-top:10px; line-height:1.5; }
         .upload-input { display:none; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📁 File Share App</h1>
-
         <div class="layout">
-            <!-- CỘT TRÁI -->
             <div class="col">
                 <div class="panel">
                     <h2>📤 Upload & Download</h2>
@@ -130,186 +50,122 @@
                         <button class="btn-upload" id="uploadBtn" onclick="document.getElementById('fileInput').click()">
                             <span>📤</span> Upload Files
                         </button>
-                        <button class="btn-refresh" onclick="loadFileList()" title="Làm mới">🔄</button>
+                        <button class="btn-refresh" onclick="loadFileList()">🔄</button>
                     </div>
                     <input type="file" id="fileInput" class="upload-input" multiple>
-                    <p class="hint-small" id="uploadHint">
-                        💡 Bấm Upload để chọn file từ thiết bị này (file sẽ được lưu trên App).
-                    </p>
                 </div>
-
                 <div class="panel">
-                    <h2>
-                        📋 File đang share
-                        <span class="file-count" id="fileCount"></span>
-                    </h2>
-                    <div class="file-list" id="fileList">
-                        <div id="filesContainer"></div>
-                    </div>
+                    <h2>📋 File đang share</h2>
+                    <div id="filesContainer"></div>
                 </div>
             </div>
-
-            <!-- CỘT PHẢI (Hướng dẫn) -->
             <div class="col">
                 <div class="panel">
-                    <h2>🔗 Chia sẻ</h2>
-                    <p class="hint-small" style="font-size:13px; margin-top:0;">
-                        Để máy khác truy cập vào kho file này, hãy làm theo hướng dẫn sau:
-                    </p>
-                    <ol style="font-size:13px; color:#555; margin-left:20px; line-height:1.8; margin-top:10px;">
-                        <li>Đảm bảo máy khác kết nối <b>cùng mạng WiFi</b> với điện thoại này.</li>
-                        <li>Mở trình duyệt web trên máy khác.</li>
-                        <li>Nhập địa chỉ IP hiển thị trên màn hình App, hoặc <b>quét mã QR</b> ở màn hình App để mở nhanh.</li>
-                    </ol>
-                    <div style="margin-top:15px; padding:15px; background:#e3f2fd; border-radius:8px; font-size:13px; color:#0d47a1;">
-                        ⚠️ Lưu ý: Server sẽ tự động dừng nếu bạn tắt App khỏi màn hình đa nhiệm.
+                    <h2>🔗 Share Link</h2>
+                    <div class="link-box">
+                        <p>Đường dẫn truy cập từ máy khác:</p>
+                        <div class="url">
+                            <span id="shareUrl">Đang lấy IP...</span>
+                            <button class="copy-btn" onclick="copyLink()">Copy</button>
+                        </div>
+                        <div class="qr-wrap">
+                            <div id="qrcode"></div>
+                            <div style="font-size:12px; color:#888;">📱 Quét QR bằng máy khác để mở</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <div class="toast" id="toast">Đã copy!</div>
+    <div class="toast" id="toast"></div>
 
     <script>
         // ==================== UPLOAD ====================
         document.getElementById('fileInput').addEventListener('change', async function (e) {
             const files = e.target.files;
             if (!files.length) return;
-
             const form = new FormData();
             for (const f of files) form.append('files', f);
-
-            const btn = document.getElementById('uploadBtn');
-            btn.disabled = true;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>⏳</span> Đang upload...';
-
             showToast(`Đang upload ${files.length} file...`);
-
             try {
                 const res = await fetch('/api/upload', { method: 'POST', body: form });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
-                if(data.ok) {
-                    showToast(`✅ Đã upload ${data.saved.length} file`);
-                    await loadFileList();
-                } else {
-                    showToast('❌ ' + (data.error || 'Lỗi'));
-                }
-            } catch (err) {
-                showToast('❌ Upload lỗi: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-                e.target.value = '';
-            }
+                if(data.ok) { showToast(`✅ Đã upload ${data.saved.length} file`); await loadFileList(); }
+                else showToast('❌ ' + (data.error || 'Lỗi'));
+            } catch (err) { showToast('❌ Upload lỗi!'); }
+            e.target.value = '';
         });
 
-        // ==================== REMOVE FILE ====================
-        async function removeFile(name) {
-            if (!confirm(`Bỏ share file "${name}"?`)) return;
-            try {
-                const res = await fetch('/api/remove-file', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    showToast('🗑️ Đã bỏ share');
-                    await loadFileList();
-                } else {
-                    showToast('❌ ' + (data.error || 'Lỗi'));
-                }
-            } catch (err) {
-                showToast('❌ ' + err.message);
-            }
-        }
-
-        // ==================== FILE LIST ====================
+        // ==================== LOAD FILES ====================
         async function loadFileList() {
             const container = document.getElementById('filesContainer');
-            const countEl = document.getElementById('fileCount');
-
             try {
-                const res = await fetch('/api/files', { cache: 'no-store' });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const res = await fetch('/api/files');
                 const data = await res.json();
-
-                countEl.textContent = data.files.length ? `(${data.files.length} file)` : '';
-
                 if (data.files.length === 0) {
-                    container.innerHTML = '<p class="empty-message">Chưa có file nào. Bấm Upload để chọn file!</p>';
+                    container.innerHTML = '<p class="empty-message">Chưa có file nào!</p>';
                     return;
                 }
-
                 container.innerHTML = data.files.map(file => `
                     <div class="file-item">
                         <div class="file-info">
-                            <span class="file-icon">${getFileIcon(file.name)}</span>
+                            <span class="file-icon">📎</span>
                             <div class="file-details">
-                                <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
-                                <div class="file-size">${formatSize(file.size)}</div>
+                                <div class="file-name">${file.name}</div>
+                                <div class="file-size">${(file.size/1024).toFixed(1)} KB</div>
                             </div>
                         </div>
                         <div class="file-actions">
-                            <a href="${file.url}" download="${escapeHtml(file.name)}"
-                               class="download-link" title="Tải xuống">⬇️</a>
-                            <button class="delete-btn" title="Bỏ share"
-                                    onclick="removeFile('${escapeJs(file.name)}')">🗑️</button>
+                            <a href="${file.url}" download="${file.name}" class="download-link">⬇️</a>
+                            <button class="delete-btn" onclick="removeFile('${file.name}')">🗑️</button>
                         </div>
                     </div>
                 `).join('');
-            } catch (err) {
-                container.innerHTML = '<p class="empty-message">⚠️ Lỗi tải danh sách: ' + err.message + '</p>';
+            } catch (err) { container.innerHTML = '<p class="empty-message">Lỗi tải dữ liệu</p>'; }
+        }
+
+        async function removeFile(name) {
+            if (!confirm(`Xoá file "${name}"?`)) return;
+            await fetch('/api/remove-file', { method: 'POST', body: JSON.stringify({ name }) });
+            await loadFileList();
+        }
+
+        // ==================== SHARE LINK & QR ====================
+        async function loadShareInfo() {
+            const urlEl = document.getElementById('shareUrl');
+            try {
+                const res = await fetch('/api/my-ip');
+                const data = await res.json();
+                const url = `http://${data.ip}:8000`;
+                urlEl.textContent = url;
+                
+                // Vẽ QR
+                document.getElementById('qrcode').innerHTML = '';
+                new QRCode(document.getElementById('qrcode'), {
+                    text: url, width: 180, height: 180,
+                    colorDark: '#000000', colorLight: '#ffffff'
+                });
+            } catch (_) {
+                urlEl.textContent = 'Lỗi lấy IP';
             }
         }
 
-        // ==================== HELPERS ====================
-        function escapeHtml(s) {
-            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        function copyLink() {
+            const url = document.getElementById('shareUrl').textContent;
+            navigator.clipboard.writeText(url).then(() => showToast('📋 Đã copy link!'));
         }
 
-        function escapeJs(s) {
-            return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-                .replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-        }
-
-        function getFileIcon(filename) {
-            const ext = filename.split('.').pop().toLowerCase();
-            const icons = {
-                pdf:'📕', doc:'📘', docx:'📘', xls:'📗', xlsx:'📗',
-                ppt:'📙', pptx:'📙', txt:'📄', zip:'🗜️', rar:'🗜️',
-                jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️', svg:'🖼️',
-                webp:'🖼️', heic:'🖼️', mp3:'🎵', wav:'🎵', m4a:'🎵',
-                mp4:'🎬', avi:'🎬', mkv:'🎬', mov:'🎬', webm:'🎬',
-                exe:'⚙️', js:'💻', html:'💻', css:'💻', json:'💻', py:'💻'
-            };
-            return icons[ext] || '📎';
-        }
-
-        function formatSize(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        // ==================== TOAST ====================
-        function showToast(message) {
+        function showToast(msg) {
             const toast = document.getElementById('toast');
-            toast.textContent = message;
+            toast.textContent = msg;
             toast.classList.add('show');
-            clearTimeout(showToast._t);
-            showToast._t = setTimeout(() => toast.classList.remove('show'), 2200);
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
-        // Load khi mở trang
+        // Khởi chạy
         window.addEventListener('DOMContentLoaded', () => {
             loadFileList();
+            loadShareInfo();
             setInterval(loadFileList, 5000);
         });
     </script>
