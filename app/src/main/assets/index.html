@@ -37,6 +37,22 @@
         .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(100px); background:#333; color:white; padding:12px 24px; border-radius:8px; opacity:0; transition:all .3s; z-index:1000; }
         .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
         .upload-input { display:none; }
+        
+        /* CSS CHO NÚT TẢI APK */
+        .apk-box {
+            background: #fff3e0; border: 2px dashed #ff9800;
+            border-radius: 12px; padding: 20px; text-align: center;
+            margin-top: 15px;
+        }
+        .apk-box h3 { color: #e65100; font-size: 16px; margin-bottom: 8px; }
+        .apk-box p { color: #bf360c; font-size: 13px; margin-bottom: 15px; }
+        .btn-apk {
+            background: #ff9800; color: white; text-decoration: none;
+            padding: 12px 20px; border-radius: 8px; font-weight: bold;
+            display: inline-flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 10px rgba(255, 152, 0, 0.4);
+        }
+        .btn-apk:hover { background: #f57c00; }
     </style>
 </head>
 <body>
@@ -74,13 +90,22 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- KHỐI TẢI APK MỚI -->
+                <div class="panel apk-box">
+                    <h3>📱 Tải App về máy</h3>
+                    <p>Cài đặt App này trên điện thoại khác để nhận file dễ dàng hơn.</p>
+                    <a href="/download-apk" class="btn-apk">
+                        ⬇️ Tải File APK
+                    </a>
+                </div>
+
             </div>
         </div>
     </div>
     <div class="toast" id="toast"></div>
 
     <script>
-        // ==================== UPLOAD ====================
         document.getElementById('fileInput').addEventListener('change', async function (e) {
             const files = e.target.files;
             if (!files.length) return;
@@ -96,7 +121,6 @@
             e.target.value = '';
         });
 
-        // ==================== LOAD FILES ====================
         async function loadFileList() {
             const container = document.getElementById('filesContainer');
             try {
@@ -130,7 +154,6 @@
             await loadFileList();
         }
 
-        // ==================== SHARE LINK & QR ====================
         async function loadShareInfo() {
             const urlEl = document.getElementById('shareUrl');
             try {
@@ -138,16 +161,12 @@
                 const data = await res.json();
                 const url = `http://${data.ip}:8000`;
                 urlEl.textContent = url;
-                
-                // Vẽ QR
                 document.getElementById('qrcode').innerHTML = '';
                 new QRCode(document.getElementById('qrcode'), {
                     text: url, width: 180, height: 180,
                     colorDark: '#000000', colorLight: '#ffffff'
                 });
-            } catch (_) {
-                urlEl.textContent = 'Lỗi lấy IP';
-            }
+            } catch (_) { urlEl.textContent = 'Lỗi lấy IP'; }
         }
 
         function copyLink() {
@@ -162,7 +181,6 @@
             setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
-        // Khởi chạy
         window.addEventListener('DOMContentLoaded', () => {
             loadFileList();
             loadShareInfo();
