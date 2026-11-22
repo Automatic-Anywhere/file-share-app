@@ -37,7 +37,12 @@ public class FileShareServer extends NanoHTTPD {
 
         try {
             if (Method.GET.equals(method) && ("/".equals(uri) || "/index.html".equals(uri))) {
-                return serveAsset("index.html");
+                return serveAsset("index.html", MIME_HTML);
+            }
+
+            // API TẢI FILE APK CỦA APP
+            if (Method.GET.equals(method) && "/download-apk".equals(uri)) {
+                return serveAsset("FileShareApp.apk", "application/vnd.android.package-archive");
             }
 
             if (Method.GET.equals(method) && "/api/my-ip".equals(uri)) {
@@ -53,7 +58,6 @@ public class FileShareServer extends NanoHTTPD {
                 return listFiles();
             }
 
-            // Sửa lại phần bắt route Download để nhận được cả ID và Tên file
             if (Method.GET.equals(method) && uri.startsWith("/download/")) {
                 return downloadFile(uri.substring("/download/".length()));
             }
@@ -75,11 +79,14 @@ public class FileShareServer extends NanoHTTPD {
         }
     }
 
-    private Response serveAsset(String name) {
+    private Response serveAsset(String name, String mime) {
         try {
             InputStream is = context.getAssets().open(name);
-            Response r = newChunkedResponse(Response.Status.OK, MIME_HTML, is);
+            Response r = newChunkedResponse(Response.Status.OK, mime, is);
             r.addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+            if (name.endsWith(".apk")) {
+                r.addHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");
+            }
             return r;
         } catch (IOException e) {
             return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT,
@@ -104,7 +111,6 @@ public class FileShareServer extends NanoHTTPD {
               .append("\"idx\":").append(i).append(",")
               .append("\"name\":\"").append(escapeJson(f.getName())).append("\",")
               .append("\"size\":").append(f.length()).append(",")
-              // SỬA Ở ĐÂY: Thêm tên file vào sau chỉ số ID để WebView biết đuôi file
               .append("\"url\":\"/download/").append(i).append("/").append(urlEncode(f.getName())).append("\"")
               .append("}");
         }
@@ -114,7 +120,6 @@ public class FileShareServer extends NanoHTTPD {
 
     private Response downloadFile(String urlPath) {
         String idxStr = urlPath;
-        // Nếu URL có dạng 0/ten-file.pdf, ta chỉ lấy phần số "0"
         if (urlPath.contains("/")) {
             idxStr = urlPath.split("/")[0];
         }
@@ -135,8 +140,6 @@ public class FileShareServer extends NanoHTTPD {
         try {
             FileInputStream fis = new FileInputStream(file);
             Response r = newChunkedResponse(Response.Status.OK, "application/octet-stream", fis);
-            
-            // SỬA Ở ĐÂY: Header chuẩn để Android nhận diện đúng tên file
             r.addHeader("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"");
             r.addHeader("Content-Length", String.valueOf(file.length()));
             return r;
