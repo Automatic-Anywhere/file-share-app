@@ -34,16 +34,9 @@
 
         /* TAB TEXT */
         .note-item { display:flex; align-items:center; gap:8px; margin-bottom:12px; background:#fff; padding:10px; border-radius:8px; border: 2px solid #eee; transition: border-color 0.3s; }
-        
-        /* Màu viền ô text */
-        .note-item.editing { border-color: #f44336; } /* Đỏ khi đang sửa */
-        .note-item.saved { border-color: #4CAF50; }   /* Xanh lá khi vừa lưu */
-
-        .note-text { 
-            flex: 1; padding: 5px; font-size: 14px; color: #333; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; /* Cắt chữ ... */
-            cursor: pointer; border: none; background: transparent;
-        }
+        .note-item.editing { border-color: #f44336; }
+        .note-item.saved { border-color: #4CAF50; }
+        .note-text { flex: 1; padding: 5px; font-size: 14px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; border: none; background: transparent; }
         .note-actions { display:flex; gap:5px; flex-shrink: 0; }
         .btn-icon { padding:8px; border-radius:6px; background:#f0f0f0; border:none; cursor:pointer; font-size:16px; }
         .btn-edit { color:#ff9800; }
@@ -75,20 +68,17 @@
             <button class="tab-btn" onclick="openTab('tab-share')">🔗 Chia sẻ</button>
         </div>
 
-        <!-- TAB FILE -->
         <div id="tab-file" class="tab-content active">
             <button class="btn-primary" onclick="document.getElementById('fileInput').click()">📤 Tải File Lên</button>
             <input type="file" id="fileInput" class="upload-input" multiple>
             <div style="margin-top:20px;" id="filesContainer"></div>
         </div>
 
-        <!-- TAB TEXT -->
         <div id="tab-text" class="tab-content">
             <button class="btn-primary" style="background:#ff9800; margin-bottom:15px;" onclick="addNewNote()">+ Tạo Văn Bản Mới</button>
             <div id="notesContainer"></div>
         </div>
 
-        <!-- TAB SHARE -->
         <div id="tab-share" class="tab-content">
             <p style="margin-bottom:10px; font-size:14px; color:#555;">Đường dẫn truy cập:</p>
             <div class="url-box">
@@ -151,18 +141,26 @@
             } catch (err) {}
         }
 
-        // ==================== NOTES ====================
+        // ==================== NOTES & SYNC ====================
         let notesList = [];
         let currentEditIndex = -1;
+        let isTyping = false; // Cờ đánh dấu xem người dùng đang gõ hay không
 
-        async function loadNotes() {
-            const container = document.getElementById('notesContainer');
+        async function fetchNotesFromServer(isAutoRefresh = false) {
+            // Nếu đang mở popup (đang gõ) thì không làm mới để tránh mất chữ
+            if (isAutoRefresh && (currentEditIndex !== -1 || isTyping)) return;
+
             try {
                 const res = await fetch('/api/text');
-                notesList = await res.json();
-                if(!Array.isArray(notesList)) notesList = [];
-                renderNotes();
-            } catch (err) { container.innerHTML = '<p>Lỗi tải dữ liệu</p>'; }
+                const data = await res.json();
+                const newData = Array.isArray(data) ? data : [];
+
+                // So sánh dữ liệu mới với dữ liệu cũ. Nếu khác thì mới vẽ lại
+                if (JSON.stringify(newData) !== JSON.stringify(notesList)) {
+                    notesList = newData;
+                    renderNotes();
+                }
+            } catch (err) {}
         }
 
         function renderNotes() {
@@ -172,10 +170,7 @@
                 return;
             }
             container.innerHTML = notesList.map((note, index) => {
-                // Kiểm tra xem ô này có phải ô vừa sửa không
-                let stateClass = "";
-                if (index === currentEditIndex) stateClass = "editing";
-                
+                let stateClass = (index === currentEditIndex) ? "editing" : "";
                 return `
                 <div class="note-item ${stateClass}" id="note-item-${index}" onclick="highlightNote(${index})">
                     <div class="note-text" onclick="openModal(${index})">${note || '<i style="color:#aaa;">(Trống)</i>'}</div>
@@ -189,35 +184,35 @@
         }
 
         function highlightNote(index) {
-            // Xóa màu đỏ của ô đang sửa cũ
             document.querySelectorAll('.note-item').forEach(el => el.classList.remove('editing', 'saved'));
-            // Thêm màu xám bình thường
         }
 
-        function addNewNote() {
+        async function addNewNote() {
             notesList.push("");
+            await syncNotesToServer();
             currentEditIndex = notesList.length - 1;
-            saveNotes();
+            renderNotes();
+            openModal(currentEditIndex); // Mở luôn popup cho tiện
         }
 
-        function deleteNote(index) {
+        async function deleteNote(index) {
             if(!confirm("Xóa văn bản này?")) return;
             notesList.splice(index, 1);
             if(currentEditIndex === index) currentEditIndex = -1;
-            saveNotes();
+            await syncNotesToServer();
+            renderNotes();
         }
 
         function copyNote(index) {
             navigator.clipboard.writeText(notesList[index]).then(() => alert('Đã sao chép văn bản!'));
         }
 
-        async function saveNotes() {
+        async function syncNotesToServer() {
             try {
                 await fetch('/api/text/save', {
                     method: 'POST',
                     body: JSON.stringify(notesList)
                 });
-                renderNotes();
             } catch (err) {}
         }
 
@@ -226,12 +221,19 @@
             currentEditIndex = index;
             document.getElementById('modalTextarea').value = notesList[index] || "";
             document.getElementById('editModal').style.display = 'flex';
+            
+            // Lắng nghe sự kiện gõ phím để bật cờ isTyping
+            document.getElementById('modalTextarea').addEventListener('input', () => {
+                isTyping = true;
+            });
+            
             renderNotes(); // Cập nhật màu đỏ
         }
 
         function closeModal() {
             document.getElementById('editModal').style.display = 'none';
             currentEditIndex = -1;
+            isTyping = false;
             renderNotes(); // Trở về màu bình thường
         }
 
@@ -239,22 +241,21 @@
             const text = document.getElementById('modalTextarea').value;
             notesList[currentEditIndex] = text;
             
-            // Đóng popup
             document.getElementById('editModal').style.display = 'none';
             
-            // Render lại và set màu xanh lá
             const savedIndex = currentEditIndex;
             currentEditIndex = -1;
+            isTyping = false;
+            
             renderNotes();
             
             const savedItem = document.getElementById('note-item-' + savedIndex);
             if (savedItem) {
                 savedItem.classList.add('saved'); // Màu xanh
-                // Tự động xóa màu xanh sau 1.5s
                 setTimeout(() => savedItem.classList.remove('saved'), 1500);
             }
 
-            await saveNotes();
+            await syncNotesToServer(); // Lưu lên server ngay lập tức
         }
 
         // ==================== SHARE ====================
@@ -276,9 +277,12 @@
         // Khởi tạo
         window.addEventListener('DOMContentLoaded', () => {
             loadFileList();
-            loadNotes();
+            fetchNotesFromServer(); // Tải lần đầu
             loadShareInfo();
+            
+            // Tự động đồng bộ mỗi 3 giây
             setInterval(loadFileList, 5000);
+            setInterval(() => fetchNotesFromServer(true), 3000);
         });
     </script>
 </body>
