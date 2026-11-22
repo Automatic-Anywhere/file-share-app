@@ -28,7 +28,6 @@ public class FileShareServer extends NanoHTTPD {
         this.noteFile = new File(context.getFilesDir(), "notes.json");
     }
 
-    // Hàm dọn dẹp toàn bộ dữ liệu khi quay lại
     public void clearAllData() {
         fileStore.clearAll();
         if (noteFile.exists()) noteFile.delete();
@@ -103,10 +102,12 @@ public class FileShareServer extends NanoHTTPD {
             Map<String, String> body = new HashMap<>();
             session.parseBody(body);
             String jsonArray = body.get("postData");
-            if (jsonArray == null) jsonArray = "[]";
-
-            try (FileOutputStream fos = new FileOutputStream(noteFile)) {
-                fos.write(jsonArray.getBytes(StandardCharsets.UTF_8));
+            
+            // Nếu có data, ghi thẳng mảng JSON xuống file
+            if (jsonArray != null) {
+                try (FileOutputStream fos = new FileOutputStream(noteFile)) {
+                    fos.write(jsonArray.getBytes(StandardCharsets.UTF_8));
+                }
             }
             return jsonResponse("{\"ok\":true}");
         } catch (Exception e) {
@@ -195,7 +196,8 @@ public class FileShareServer extends NanoHTTPD {
         try {
             Map<String, String> body = new HashMap<>();
             session.parseBody(body);
-            String name = extractJsonField(body.get("postData"), "name");
+            String json = body.get("postData");
+            String name = extractJsonField(json, "name");
             boolean ok = fileStore.removeByName(name);
             return jsonResponse("{\"ok\":" + ok + "}");
         } catch (Exception e) {
