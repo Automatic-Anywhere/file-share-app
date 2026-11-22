@@ -40,9 +40,17 @@ public class FileShareServer extends NanoHTTPD {
                 return serveAsset("index.html", MIME_HTML);
             }
 
-            // API TẢI FILE APK CỦA APP
             if (Method.GET.equals(method) && "/download-apk".equals(uri)) {
-                return serveAsset("FileShareApp.apk", "application/vnd.android.package-archive");
+                // Tự động tìm file .apk trong thư mục assets
+                String[] assets = context.getAssets().list("");
+                if (assets != null) {
+                    for (String file : assets) {
+                        if (file.endsWith(".apk")) {
+                            return serveAsset(file, "application/vnd.android.package-archive");
+                        }
+                    }
+                }
+                return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Không tìm thấy file APK trong App.");
             }
 
             if (Method.GET.equals(method) && "/api/my-ip".equals(uri)) {
@@ -198,14 +206,10 @@ public class FileShareServer extends NanoHTTPD {
             Map<String, String> body = new HashMap<>();
             session.parseBody(body);
             String json = body.get("postData");
-            if (json == null) {
-                return jsonResponse("{\"ok\":false,\"error\":\"No body\"}");
-            }
+            if (json == null) return jsonResponse("{\"ok\":false,\"error\":\"No body\"}");
 
             String name = extractJsonField(json, "name");
-            if (name == null) {
-                return jsonResponse("{\"ok\":false,\"error\":\"Missing name\"}");
-            }
+            if (name == null) return jsonResponse("{\"ok\":false,\"error\":\"Missing name\"}");
 
             boolean ok = fileStore.removeByName(name);
             return jsonResponse("{\"ok\":" + ok + "}");
@@ -221,11 +225,7 @@ public class FileShareServer extends NanoHTTPD {
     }
 
     private static String urlEncode(String s) {
-        try {
-            return java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20");
-        } catch (Exception e) {
-            return s;
-        }
+        try { return java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20"); } catch (Exception e) { return s; }
     }
 
     private static String extractJsonField(String json, String key) {
