@@ -11,7 +11,6 @@
         .container { background:white; border-radius:16px; padding:25px; box-shadow:0 10px 30px rgba(0,0,0,.1); width:100%; max-width:800px; }
         h1 { color:#333; text-align:center; margin-bottom:20px; font-size:22px; }
         
-        /* TAB CSS */
         .tabs { display:flex; border-bottom: 2px solid #eee; margin-bottom: 20px; }
         .tab-btn { flex:1; padding:12px; text-align:center; font-weight:bold; color:#777; cursor:pointer; border:none; background:none; transition:all 0.3s; }
         .tab-btn.active { color:#2196F3; border-bottom: 3px solid #2196F3; margin-bottom: -2px; }
@@ -19,9 +18,8 @@
         .tab-content.active { display:block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
-        /* CHUNG */
-        button { padding:12px 20px; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:8px; justify-content:center; }
-        .btn-primary { background:#4CAF50; color:white; width:100%; }
+        button { padding:10px 15px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:6px; justify-content:center; }
+        .btn-primary { background:#4CAF50; color:white; width:100%; padding:12px; font-size:15px; }
         .btn-secondary { background:#2196F3; color:white; }
         .input-box { width:100%; padding:12px; border:1px solid #ccc; border-radius:8px; font-size:14px; margin-bottom:10px; outline:none; }
         
@@ -34,65 +32,50 @@
         .upload-input { display:none; }
 
         /* TAB TEXT */
-        .text-toolbar { display:flex; gap:10px; margin-bottom:15px; }
-        textarea { width:100%; height:150px; padding:12px; border:1px solid #ccc; border-radius:8px; font-size:15px; resize:none; font-family:inherit; }
-        textarea:disabled { background:#f9f9f9; color:#555; }
-        .btn-save { background:#4CAF50; color:white; flex:1; }
-        .btn-edit { background:#ff9800; color:white; flex:1; }
-        .btn-delete { background:#f44336; color:white; flex:1; }
-        .btn-cancel { background:#9e9e9e; color:white; flex:1; display:none; }
+        .note-item { display:flex; align-items:flex-start; gap:10px; margin-bottom:12px; background:#f9f9f9; padding:12px; border-radius:8px; border-left:4px solid #ff9800; }
+        .note-input { flex:1; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; font-family:inherit; resize:none; height:40px; transition:height 0.2s; overflow:hidden; }
+        .note-input.expanded { height:120px; overflow:auto; }
+        .note-actions { display:flex; flex-direction:column; gap:5px; }
+        .btn-icon { background:#eee; border:none; padding:8px; border-radius:6px; cursor:pointer; font-size:16px; }
+        .btn-save { background:#4CAF50; color:white; }
+        .btn-copy { background:#2196F3; color:white; }
+        .btn-del { background:#f44336; color:white; }
 
         /* TAB SHARE */
         .url-box { display:flex; gap:10px; margin-bottom:15px; }
         .qr-container { display:flex; justify-content:center; margin:20px 0; }
         .apk-box { background:#fff3e0; padding:20px; border-radius:12px; text-align:center; border:2px dashed #ff9800; margin-top:20px; }
         .btn-apk { background:#ff9800; color:white; text-decoration:none; padding:10px 20px; border-radius:8px; display:inline-block; margin-top:10px; font-weight:bold; }
-
-        /* NÚT BACK (Ẩn trên Web, chỉ để phòng hờ) */
-        #btnBack { display:none; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📁 File Share App</h1>
 
-        <!-- THANH TAB -->
         <div class="tabs">
             <button class="tab-btn active" onclick="openTab('tab-file')">📤 File</button>
             <button class="tab-btn" onclick="openTab('tab-text')">📝 Văn bản</button>
             <button class="tab-btn" onclick="openTab('tab-share')">🔗 Chia sẻ</button>
         </div>
 
-        <!-- TAB 1: UPLOAD FILE -->
         <div id="tab-file" class="tab-content active">
-            <button class="btn-primary" onclick="document.getElementById('fileInput').click()">
-                📤 Tải File Lên
-            </button>
+            <button class="btn-primary" onclick="document.getElementById('fileInput').click()">📤 Tải File Lên</button>
             <input type="file" id="fileInput" class="upload-input" multiple>
             <div style="margin-top:20px;" id="filesContainer"></div>
         </div>
 
-        <!-- TAB 2: VĂN BẢN -->
         <div id="tab-text" class="tab-content">
-            <textarea id="textArea" placeholder="Nhập văn bản cần chia sẻ..."></textarea>
-            <div class="text-toolbar" style="margin-top:15px;">
-                <button id="btnSaveText" class="btn-save" onclick="saveText()">💾 Lưu</button>
-                <button id="btnEditText" class="btn-edit" onclick="enableEditText()" style="display:none;">✏️ Chỉnh sửa</button>
-                <button id="btnDeleteText" class="btn-delete" onclick="deleteText()" style="display:none;">🗑️ Xoá</button>
-                <button id="btnCancelText" class="btn-cancel" onclick="loadText()">Hủy</button>
-            </div>
+            <button class="btn-primary" style="background:#ff9800; margin-bottom:15px;" onclick="addNewNote()">+ Tạo Văn Bản Mới</button>
+            <div id="notesContainer"></div>
         </div>
 
-        <!-- TAB 3: CHIA SẺ -->
         <div id="tab-share" class="tab-content">
             <p style="margin-bottom:10px; font-size:14px; color:#555;">Đường dẫn truy cập:</p>
             <div class="url-box">
                 <input type="text" id="shareUrl" class="input-box" readonly>
                 <button class="btn-secondary" onclick="copyLink()">Copy</button>
             </div>
-            <div class="qr-container">
-                <div id="qrcode"></div>
-            </div>
+            <div class="qr-container"><div id="qrcode"></div></div>
             <div class="apk-box">
                 <h3 style="color:#e65100; margin-bottom:5px;">📱 Tải App cho máy khác</h3>
                 <a href="/download-apk" class="btn-apk">⬇️ Tải File APK</a>
@@ -101,7 +84,6 @@
     </div>
 
     <script>
-        // ==================== TAB LOGIC ====================
         function openTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -109,16 +91,13 @@
             event.currentTarget.classList.add('active');
         }
 
-        // ==================== FILE LOGIC ====================
+        // ==================== FILE ====================
         document.getElementById('fileInput').addEventListener('change', async function (e) {
             const files = e.target.files;
             if (!files.length) return;
             const form = new FormData();
             for (const f of files) form.append('files', f);
-            try {
-                await fetch('/api/upload', { method: 'POST', body: form });
-                await loadFileList();
-            } catch (err) { alert('Lỗi upload!'); }
+            try { await fetch('/api/upload', { method: 'POST', body: form }); await loadFileList(); } catch (err) {}
             e.target.value = '';
         });
 
@@ -127,100 +106,113 @@
             try {
                 const res = await fetch('/api/files');
                 const data = await res.json();
-                if (data.files.length === 0) {
-                    container.innerHTML = '<p style="text-align:center;color:#999;font-style:italic;">Chưa có file nào.</p>';
-                    return;
-                }
+                if (data.files.length === 0) { container.innerHTML = '<p style="text-align:center;color:#999;">Chưa có file.</p>'; return; }
                 container.innerHTML = data.files.map(f => `
                     <div class="file-item">
                         <div class="file-info">
                             <span class="file-name">📎 ${f.name}</span>
                             <span class="file-size">${(f.size/1024).toFixed(1)} KB</span>
                         </div>
-                        <div class="file-actions">
-                            <a href="${f.url}" download="${f.name}">⬇️</a>
-                        </div>
+                        <div class="file-actions"><a href="${f.url}" download="${f.name}">⬇️</a></div>
                     </div>
                 `).join('');
-            } catch (err) { container.innerHTML = 'Lỗi tải dữ liệu'; }
+            } catch (err) {}
         }
 
-        // ==================== TEXT LOGIC ====================
-        async function loadText() {
-            const res = await fetch('/api/text');
-            const data = await res.json();
-            const ta = document.getElementById('textArea');
-            
-            if (data.text) {
-                ta.value = data.text;
-                ta.disabled = true; // Đã có văn bản -> Khoá không cho gõ
-                document.getElementById('btnSaveText').style.display = 'none';
-                document.getElementById('btnEditText').style.display = 'block';
-                document.getElementById('btnDeleteText').style.display = 'block';
-                document.getElementById('btnCancelText').style.display = 'none';
-            } else {
-                ta.value = '';
-                ta.disabled = false; // Chưa có -> Cho phép gõ
-                document.getElementById('btnSaveText').style.display = 'block';
-                document.getElementById('btnEditText').style.display = 'none';
-                document.getElementById('btnDeleteText').style.display = 'none';
-                document.getElementById('btnCancelText').style.display = 'none';
+        // ==================== NOTES ====================
+        let notesList = [];
+
+        async function loadNotes() {
+            const container = document.getElementById('notesContainer');
+            try {
+                const res = await fetch('/api/text');
+                notesList = await res.json();
+                renderNotes();
+            } catch (err) { container.innerHTML = '<p>Lỗi tải dữ liệu</p>'; }
+        }
+
+        function renderNotes() {
+            const container = document.getElementById('notesContainer');
+            if (notesList.length === 0) {
+                container.innerHTML = '<p style="text-align:center;color:#999;font-style:italic;">Chưa có văn bản nào. Bấm "Tạo mới" để thêm!</p>';
+                return;
             }
+            container.innerHTML = notesList.map((note, index) => `
+                <div class="note-item" id="note-${index}">
+                    <textarea class="note-input" id="input-${index}" 
+                        onclick="expandNote(${index})"
+                        onblur="shrinkNote(${index})"
+                        onchange="notesList[${index}] = this.value">${note}</textarea>
+                    <div class="note-actions">
+                        <button class="btn-icon btn-save" onclick="saveNotes()" title="Lưu">💾</button>
+                        <button class="btn-icon btn-copy" onclick="copyNote(${index})" title="Sao chép">📋</button>
+                        <button class="btn-icon btn-del" onclick="deleteNote(${index})" title="Xóa">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        function enableEditText() {
-            const ta = document.getElementById('textArea');
-            ta.disabled = false;
-            ta.focus();
-            document.getElementById('btnSaveText').style.display = 'block';
-            document.getElementById('btnCancelText').style.display = 'block';
-            document.getElementById('btnEditText').style.display = 'none';
-            document.getElementById('btnDeleteText').style.display = 'none';
+        function expandNote(index) {
+            document.getElementById('input-' + index).classList.add('expanded');
         }
 
-        async function saveText() {
-            const text = document.getElementById('textArea').value;
-            await fetch('/api/text', {
-                method: 'POST',
-                body: JSON.stringify({ text: text })
+        function shrinkNote(index) {
+            const el = document.getElementById('input-' + index);
+            el.classList.remove('expanded');
+            el.value = notesList[index]; // Cập nhật lại giá trị mới nhất
+        }
+
+        function addNewNote() {
+            notesList.push(""); // Thêm chuỗi rỗng
+            renderNotes();
+            const lastIndex = notesList.length - 1;
+            setTimeout(() => document.getElementById('input-' + lastIndex).focus(), 100);
+        }
+
+        function deleteNote(index) {
+            if(!confirm("Xóa văn bản này?")) return;
+            notesList.splice(index, 1);
+            saveNotes();
+        }
+
+        function copyNote(index) {
+            navigator.clipboard.writeText(notesList[index]).then(() => alert('Đã sao chép văn bản!'));
+        }
+
+        async function saveNotes() {
+            // Đồng bộ lại các textarea đang mở
+            document.querySelectorAll('.note-input').forEach((el, i) => {
+                notesList[i] = el.value;
             });
-            alert('Đã lưu văn bản!');
-            loadText();
+
+            await fetch('/api/text/save', {
+                method: 'POST',
+                body: JSON.stringify(notesList)
+            });
+            renderNotes(); // Render lại để thu gọn
         }
 
-        async function deleteText() {
-            if (!confirm('Bạn có chắc chắn muốn xoá văn bản này?')) return;
-            await fetch('/api/text/delete', { method: 'POST' });
-            loadText();
-        }
-
-        // ==================== SHARE LOGIC ====================
+        // ==================== SHARE ====================
         async function loadShareInfo() {
             try {
                 const res = await fetch('/api/my-ip');
                 const data = await res.json();
                 const url = `http://${data.ip}:8000`;
                 document.getElementById('shareUrl').value = url;
-                
                 document.getElementById('qrcode').innerHTML = '';
-                new QRCode(document.getElementById('qrcode'), {
-                    text: url, width: 180, height: 180,
-                    colorDark: '#000000', colorLight: '#ffffff'
-                });
+                new QRCode(document.getElementById('qrcode'), { text: url, width: 180, height: 180 });
             } catch (_) {}
         }
 
         function copyLink() {
-            const url = document.getElementById('shareUrl').value;
-            navigator.clipboard.writeText(url).then(() => alert('Đã copy link!'));
+            navigator.clipboard.writeText(document.getElementById('shareUrl').value).then(() => alert('Đã copy link!'));
         }
 
-        // Khởi chạy khi load
         window.addEventListener('DOMContentLoaded', () => {
             loadFileList();
-            loadText();
+            loadNotes();
             loadShareInfo();
-            setInterval(loadFileList, 5000); // 5s cập nhật file 1 lần
+            setInterval(loadFileList, 5000);
         });
     </script>
 </body>
