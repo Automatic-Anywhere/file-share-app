@@ -8,6 +8,8 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.URLUtil;
@@ -35,8 +37,15 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -48,10 +57,15 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout selectionLayout, webLayout, clientLayout;
     private ValueCallback<Uri[]> filePathCallback;
 
-    // Lịch sử kết nối
     private List<String> historyList = new ArrayList<>();
+    private Map<String, Boolean> onlineStatus = new HashMap<>(); // Lưu trạng thái ping
     private ArrayAdapter<String> historyAdapter;
     private SharedPreferences prefs;
+
+    // Bộ đếm ping 3s
+    private Handler pingHandler = new Handler(Looper.getMainLooper());
+    private ExecutorService pingExecutor = Executors.newCachedThreadPool();
+    private Runnable pingRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
         webLayout = findViewById(R.id.webLayout);
         clientLayout = findViewById(R.id.clientLayout);
 
-        // --- MÀN HÌNH CHỌN BAN ĐẦU ---
+        // --- MÀN HÌNH CHỌN ---
         findViewById(R.id.btnHost).setOnClickListener(v -> startHostMode());
         findViewById(R.id.btnClient).setOnClickListener(v -> showClientMode());
 
@@ -73,15 +87,13 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnBackToSelection).setOnClickListener(v -> {
             clientLayout.setVisibility(View.GONE);
             selectionLayout.setVisibility(View.VISIBLE);
+            pingHandler.removeCallbacks(pingRunnable); // Dừng ping khi quay lại
         });
 
         findViewById(R.id.btnConnectIp).setOnClickListener(v -> {
             EditText et = findViewById(R.id.etIpAddress);
             String ip = et.getText().toString().trim();
-            if (ip.isEmpty()) {
-                Toast.makeText(this, "Vui lòng nhập IP", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            if (ip.isEmpty()) { Toast.makeText(this, "Vui lòng nhập IP", Toast.LENGTH_SHORT).show(); return; }
             if (!ip.startsWith("http")) ip = "http://" + ip;
             if (!ip.contains(":")) ip += ":8000";
             connectToServer(ip);
@@ -97,45 +109,81 @@ public class MainActivity extends AppCompatActivity {
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                if (convertView == null) {
-                    convertView = getLayoutInflater().inflate(R.layout.item_history, parent, false);
-                }
+                if (convertView == null) convertView = getLayoutInflater().inflate(R.layout.item_history, parent, false);
+                
                 String url = getItem(position);
                 TextView tvUrl = convertView.findViewById(R.id.tvUrl);
                 Button btnDelete = convertView.findViewById(R.id.btnDelete);
+                View viewStatus = convertView.findViewById(R.id.viewStatus);
 
                 tvUrl.setText(url);
+
+                // Cập nhật chấm màu (Đỏ nếu offline hoặc chưa check, Xanh nếu online)
+                Boolean isOnline = onlineStatus.get(url);
+                if (isOnline != null && isOnline) {
+                    viewStatus.setBackgroundResource(R.drawable.circle_green);
+                } else {
+                    viewStatus.setBackgroundResource(R.drawable.circle_red);
+                }
                 
-                // Click vào dòng để kết nối nhanh
                 convertView.setOnClickListener(v -> connectToServer(url));
-                
-                // Nút xoá
                 btnDelete.setOnClickListener(v -> {
                     historyList.remove(position);
                     saveHistory();
                     notifyDataSetChanged();
                 });
-
                 return convertView;
             }
         };
         lvHistory.setAdapter(historyAdapter);
 
-        // --- NÚT QUAY LẠI MÀN HÌNH WEB ---
+        // --- NÚT QUAY LẠI TRANG WEB ---
         findViewById(R.id.btnBack).setOnClickListener(v -> {
-            if (server != null) {
-                server.clearAllData();
-                server.stop();
-                server = null;
-            }
+            if (server != null) { server.clearAllData(); server.stop(); server = null; }
             webView.loadUrl("about:blank");
             webLayout.setVisibility(View.GONE);
             selectionLayout.setVisibility(View.VISIBLE);
             Toast.makeText(this, "Đã làm sạch dữ liệu", Toast.LENGTH_SHORT).show();
         });
+
+        // Khởi tạo luồng Ping
+        pingRunnable = new Runnable() {
+            @Override
+            public void run() {
+                pingAllServers();
+                pingHandler.postDelayed(this, 3000); // 3 giây lặp lại 1 lần
+            }
+        };
     }
 
-    // --- CÁC HÀM XỬ LÝ CHẾ ĐỘ ---
+    private void pingAllServers() {
+        for (String url : historyList) {
+            pingExecutor.execute(() -> {
+                boolean isOnline = false;
+                try {
+                    // Phân tích URL để lấy IP và Port
+                    URI uri = URI.create(url);
+                    String host = uri.getHost();
+                    int port = uri.getPort() == -1 ? 80 : uri.getPort();
+                    
+                    // Thử kết nối TCP (timeout 2 giây)
+                    Socket socket = new Socket();
+                    socket.connect(new InetSocketAddress(host, port), 2000);
+                    socket.close();
+                    isOnline = true;
+                } catch (Exception e) {
+                    isOnline = false;
+                }
+
+                boolean finalIsOnline = isOnline;
+                runOnUiThread(() -> {
+                    onlineStatus.put(url, finalIsOnline);
+                    historyAdapter.notifyDataSetChanged(); // Vẽ lại giao diện
+                });
+            });
+        }
+    }
+
     private void startHostMode() {
         try {
             server = new FileShareServer(this, PORT);
@@ -152,6 +200,7 @@ public class MainActivity extends AppCompatActivity {
     private void showClientMode() {
         selectionLayout.setVisibility(View.GONE);
         clientLayout.setVisibility(View.VISIBLE);
+        pingHandler.post(pingRunnable); // Bắt đầu quét ping
     }
 
     private void startQrScan() {
@@ -159,10 +208,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void connectToServer(String url) {
-        // Lưu vào lịch sử nếu chưa có
         if (!historyList.contains(url)) {
-            historyList.add(0, url); // Thêm lên đầu
-            if (historyList.size() > 10) historyList.remove(10); // Giới hạn 10 cái
+            historyList.add(0, url);
+            if (historyList.size() > 10) historyList.remove(10);
             saveHistory();
             historyAdapter.notifyDataSetChanged();
         }
@@ -171,20 +219,16 @@ public class MainActivity extends AppCompatActivity {
         webLayout.setVisibility(View.VISIBLE);
         setupWebView();
         webView.loadUrl(url);
+        pingHandler.removeCallbacks(pingRunnable); // Dừng ping khi đã vào Web
     }
 
-    // --- HÀM LƯU / TẢI LỊCH SỬ ---
     private void loadHistory() {
         String json = prefs.getString("history", "[]");
         try {
             JSONArray array = new JSONArray(json);
             historyList.clear();
-            for (int i = 0; i < array.length(); i++) {
-                historyList.add(array.getString(i));
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+            for (int i = 0; i < array.length(); i++) historyList.add(array.getString(i));
+        } catch (JSONException e) { e.printStackTrace(); }
     }
 
     private void saveHistory() {
@@ -193,7 +237,6 @@ public class MainActivity extends AppCompatActivity {
         prefs.edit().putString("history", array.toString()).apply();
     }
 
-    // --- CẤU HÌNH WEBVIEW ---
     @SuppressLint("SetJavaScriptEnabled")
     private void setupWebView() {
         WebSettings webSettings = webView.getSettings();
@@ -255,5 +298,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (server != null) server.stop();
+        pingHandler.removeCallbacks(pingRunnable);
+        pingExecutor.shutdown();
     }
 }
