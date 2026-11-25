@@ -60,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
     private WebView webView;
     private LinearLayout selectionLayout, webLayout, clientLayout;
     private Button btnBackToolbar;
+    private TextView tvTitle;
     private ValueCallback<Uri[]> filePathCallback;
 
     public static class HistoryItem {
@@ -94,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
         webLayout = findViewById(R.id.webLayout);
         clientLayout = findViewById(R.id.clientLayout);
         btnBackToolbar = findViewById(R.id.btnBack);
+        tvTitle = findViewById(R.id.tvTitle);
 
         findViewById(R.id.btnHost).setOnClickListener(v -> startHostMode());
         findViewById(R.id.btnClient).setOnClickListener(v -> showClientMode());
@@ -141,17 +143,15 @@ public class MainActivity extends AppCompatActivity {
                 viewStatus.setBackgroundResource(isActuallyOnline ? R.drawable.circle_green : R.drawable.circle_red);
                 
                 convertView.setOnClickListener(v -> {
-                    if (isActuallyOnline) connectToServer(item.url, false);
+                    if (isActuallyOnline) connectToServer(item.url, item.name);
                     else Toast.makeText(MainActivity.this, "Server đang offline!", Toast.LENGTH_SHORT).show();
                 });
 
-                // Nút Play (Tham gia)
                 btnPlay.setOnClickListener(v -> {
-                    if (isActuallyOnline) connectToServer(item.url, false);
+                    if (isActuallyOnline) connectToServer(item.url, item.name);
                     else Toast.makeText(MainActivity.this, "Server đang offline!", Toast.LENGTH_SHORT).show();
                 });
 
-                // Nút Sửa (Cây bút)
                 btnEdit.setOnClickListener(v -> showEditDialog(position));
 
                 btnDelete.setOnClickListener(v -> {
@@ -238,7 +238,7 @@ public class MainActivity extends AppCompatActivity {
                 saveHistory();
                 historyAdapter.notifyDataSetChanged();
             }
-            connectToServer(url, false);
+            connectToServer(url, name);
         });
         builder.setNegativeButton("Hủy", (dialog, which) -> dialog.cancel());
         builder.show();
@@ -335,6 +335,8 @@ public class MainActivity extends AppCompatActivity {
         try {
             isClientMode = false;
             btnBackToolbar.setText("⬅️ Đóng Server");
+            tvTitle.setText("Máy chủ của bạn");
+            
             server = new FileShareServer(this, PORT);
             server.start();
             selectionLayout.setVisibility(View.GONE);
@@ -356,15 +358,17 @@ public class MainActivity extends AppCompatActivity {
         new IntentIntegrator(this).setPrompt("Quét mã QR máy Host").setOrientationLocked(false).initiateScan();
     }
 
-    private void connectToServer(String url, boolean askName) {
-        if (askName) {
-            promptServerNameAndConnect(url, null);
-            return;
-        }
-
+    private void connectToServer(String url, String serverName) {
         isClientMode = true;
         currentConnectedUrl = url;
         btnBackToolbar.setText("⬅️ Rời Server");
+        
+        // CẬP NHẬT TÊN SERVER LÊN THANH TIÊU ĐỀ
+        if (serverName != null && !serverName.isEmpty()) {
+            tvTitle.setText(serverName);
+        } else {
+            tvTitle.setText("File Share");
+        }
         
         clientLayout.setVisibility(View.GONE);
         webLayout.setVisibility(View.VISIBLE);
