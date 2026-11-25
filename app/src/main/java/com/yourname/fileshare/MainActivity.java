@@ -62,7 +62,6 @@ public class MainActivity extends AppCompatActivity {
     private Button btnBackToolbar;
     private ValueCallback<Uri[]> filePathCallback;
 
-    // Đối tượng lưu lịch sử
     public static class HistoryItem {
         String name;
         String url;
@@ -128,6 +127,7 @@ public class MainActivity extends AppCompatActivity {
                 HistoryItem item = getItem(position);
                 TextView tvName = convertView.findViewById(R.id.tvName);
                 TextView tvUrl = convertView.findViewById(R.id.tvUrl);
+                Button btnPlay = convertView.findViewById(R.id.btnPlay);
                 Button btnEdit = convertView.findViewById(R.id.btnEdit);
                 Button btnDelete = convertView.findViewById(R.id.btnDelete);
                 View viewStatus = convertView.findViewById(R.id.viewStatus);
@@ -141,6 +141,12 @@ public class MainActivity extends AppCompatActivity {
                 viewStatus.setBackgroundResource(isActuallyOnline ? R.drawable.circle_green : R.drawable.circle_red);
                 
                 convertView.setOnClickListener(v -> {
+                    if (isActuallyOnline) connectToServer(item.url, false);
+                    else Toast.makeText(MainActivity.this, "Server đang offline!", Toast.LENGTH_SHORT).show();
+                });
+
+                // Nút Play (Tham gia)
+                btnPlay.setOnClickListener(v -> {
                     if (isActuallyOnline) connectToServer(item.url, false);
                     else Toast.makeText(MainActivity.this, "Server đang offline!", Toast.LENGTH_SHORT).show();
                 });
@@ -222,7 +228,6 @@ public class MainActivity extends AppCompatActivity {
             String name = input.getText().toString().trim();
             if (name.isEmpty()) name = "Server không tên";
             
-            // Lưu vào danh sách
             boolean exists = false;
             for (HistoryItem item : historyList) {
                 if (item.url.equals(url)) { exists = true; break; }
@@ -378,7 +383,6 @@ public class MainActivity extends AppCompatActivity {
             historyList.clear();
             for (int i = 0; i < array.length(); i++) {
                 JSONObject obj = array.getJSONObject(i);
-                // Hỗ trợ đọc dữ liệu cũ (nếu có)
                 if (obj.has("name")) {
                     historyList.add(new HistoryItem(obj.getString("name"), obj.getString("url")));
                 } else {
