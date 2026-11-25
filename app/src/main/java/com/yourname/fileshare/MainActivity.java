@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private FileShareServer server;
     private WebView webView;
     private LinearLayout selectionLayout, webLayout, clientLayout;
+    private Button btnBackToolbar;
     private ValueCallback<Uri[]> filePathCallback;
 
     private List<String> historyList = new ArrayList<>();
@@ -67,6 +68,12 @@ public class MainActivity extends AppCompatActivity {
     private Handler pingHandler = new Handler(Looper.getMainLooper());
     private ExecutorService pingExecutor = Executors.newCachedThreadPool();
     private Runnable pingRunnable;
+    
+    // Các biến quản lý trạng thái kết nối
+    private boolean isClientMode = false;
+    private String currentConnectedUrl = "";
+    private Handler connectionCheckHandler = new Handler(Looper.getMainLooper());
+    private Runnable connectionCheckRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
         selectionLayout = findViewById(R.id.selectionLayout);
         webLayout = findViewById(R.id.webLayout);
         clientLayout = findViewById(R.id.clientLayout);
+        btnBackToolbar = findViewById(R.id.btnBack);
 
         // --- MÀN HÌNH CHỌN ---
         findViewById(R.id.btnHost).setOnClickListener(v -> startHostMode());
@@ -146,12 +154,23 @@ public class MainActivity extends AppCompatActivity {
         };
         lvHistory.setAdapter(historyAdapter);
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> {
-            if (server != null) { server.clearAllData(); server.stop(); server = null; }
-            webView.loadUrl("about:blank");
-            webLayout.setVisibility(View.GONE);
-            selectionLayout.setVisibility(View.VISIBLE);
-            Toast.makeText(this, "Đã làm sạch dữ liệu", Toast.LENGTH_SHORT).show();
+        // --- NÚT QUAY LẠI TRÊN THANH CÔNG CỤ (Dùng chung cho cả Host và Client) ---
+        btnBackToolbar.setOnClickListener(v -> {
+            if (isClientMode) {
+                // Nếu là Client: Chỉ ngắt kết nối và quay lại màn hình tham gia
+                disconnectClient();
+            } else {
+                // Nếu là Host: Tắt server, xoá dữ liệu
+                if (server != null) { 
+                    server.clearAllData(); 
+                    server.stop(); 
+                    server = null; 
+                }
+                webView.loadUrl("about:blank");
+                webLayout.setVisibility(View.GONE);
+                selectionLayout.setVisibility(View.VISIBLE);
+                Toast.makeText(this, "Đã làm sạch dữ liệu", Toast.LENGTH_SHORT).show();
+            }
         });
 
         pingRunnable = new Runnable() {
@@ -161,6 +180,46 @@ public class MainActivity extends AppCompatActivity {
                 pingHandler.postDelayed(this, 3000);
             }
         };
+
+        // --- TIẾN TRÌNH KIỂM TRA SERVER ĐANG KẾT NỐI CÒN SỐNG KHÔNG ---
+        connectionCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isClientMode && !currentConnectedUrl.isEmpty()) {
+                    pingExecutor.execute(() -> {
+                        boolean isOnline = false;
+                        try {
+                            URI uri = URI.create(currentConnectedUrl);
+                            String host = uri.getHost();
+                            int port = uri.getPort() == -1 ? 80 : uri.getPort();
+                            Socket socket = new Socket();
+                            socket.connect(new InetSocketAddress(host, port), 2000);
+                            socket.close();
+                            isOnline = true;
+                        } catch (Exception e) { isOnline = false; }
+
+                        if (!isOnline) {
+                            runOnUiThread(() -> {
+                                Toast.makeText(MainActivity.this, "Mất kết nối đến Server!", Toast.LENGTH_LONG).show();
+                                disconnectClient();
+                            });
+                        }
+                    });
+                }
+                connectionCheckHandler.postDelayed(this, 3000); // 3 giây kiểm tra 1 lần
+            }
+        };
+    }
+
+    private void disconnectClient() {
+        isClientMode = false;
+        currentConnectedUrl = "";
+        connectionCheckHandler.removeCallbacks(connectionCheckRunnable);
+        
+        webView.loadUrl("about:blank");
+        webLayout.setVisibility(View.GONE);
+        clientLayout.setVisibility(View.VISIBLE);
+        pingHandler.post(pingRunnable); // Bật lại ping danh sách
     }
 
     private void pingAllServers() {
@@ -189,6 +248,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void startHostMode() {
         try {
+            isClientMode = false;
+            btnBackToolbar.setText("⬅️ Đóng Server");
+            
             server = new FileShareServer(this, PORT);
             server.start();
             selectionLayout.setVisibility(View.GONE);
@@ -218,11 +280,18 @@ public class MainActivity extends AppCompatActivity {
             historyAdapter.notifyDataSetChanged();
         }
 
+        isClientMode = true;
+        currentConnectedUrl = url;
+        btnBackToolbar.setText("⬅️ Rời Server");
+        
         clientLayout.setVisibility(View.GONE);
         webLayout.setVisibility(View.VISIBLE);
         setupWebView();
         webView.loadUrl(url);
+        
         pingHandler.removeCallbacks(pingRunnable);
+        connectionCheckHandler.removeCallbacks(connectionCheckRunnable);
+        connectionCheckHandler.post(connectionCheckRunnable); // Bắt đầu check kết nối
     }
 
     private void loadHistory() {
@@ -252,9 +321,7 @@ public class MainActivity extends AppCompatActivity {
                 super.onReceivedError(view, request, error);
                 if (request.isForMainFrame()) {
                     Toast.makeText(MainActivity.this, "Không thể kết nối đến Server!", Toast.LENGTH_LONG).show();
-                    webLayout.setVisibility(View.GONE);
-                    clientLayout.setVisibility(View.VISIBLE);
-                    pingHandler.post(pingRunnable);
+                    if (isClientMode) disconnectClient();
                 }
             }
         });
@@ -270,7 +337,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // CẬP NHẬT LOGIC DOWNLOAD TẠI ĐÂY
         webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
             try {
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
@@ -279,15 +345,12 @@ public class MainActivity extends AppCompatActivity {
                 
                 String filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
                 
-                // Nếu tên file bị lỗi (chỉ là số hoặc đuôi .bin) -> Cắt từ URL
                 if (filename.endsWith(".bin") || filename.matches("^\\d+$") || !filename.contains(".")) {
                     String[] parts = url.split("/");
                     if (parts.length > 0) {
                         String lastPart = parts[parts.length - 1];
                         if (lastPart.contains("?")) lastPart = lastPart.split("\\?")[0];
-                        
                         filename = android.net.Uri.decode(lastPart);
-                        
                         if (!filename.contains(".")) {
                             filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
                         }
@@ -334,6 +397,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         if (server != null) server.stop();
         pingHandler.removeCallbacks(pingRunnable);
+        connectionCheckHandler.removeCallbacks(connectionCheckRunnable);
         pingExecutor.shutdown();
     }
 }
