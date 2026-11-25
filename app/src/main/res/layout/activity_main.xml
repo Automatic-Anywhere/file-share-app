@@ -4,7 +4,6 @@
     android:layout_height="match_parent"
     android:background="#ffffff">
 
-    <!-- MÀN HÌNH CHỌN CHẾ ĐỘ BAN ĐẦU -->
     <LinearLayout
         android:id="@+id/selectionLayout"
         android:layout_width="match_parent"
@@ -44,7 +43,6 @@
             android:textColor="#ffffff"/>
     </LinearLayout>
 
-    <!-- MÀN HÌNH THAM GIA SERVER (CLIENT) -->
     <LinearLayout
         android:id="@+id/clientLayout"
         android:layout_width="match_parent"
@@ -54,7 +52,6 @@
         android:background="#f0f2f5"
         android:visibility="gone">
 
-        <!-- THANH TIÊU ĐỀ CĂN GIỮA TUYỆT ĐỐI -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -83,7 +80,6 @@
 
         </RelativeLayout>
 
-        <!-- Nhập IP thủ công -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -110,7 +106,6 @@
                 android:textColor="#ffffff"/>
         </LinearLayout>
 
-        <!-- Nút Quét QR -->
         <Button
             android:id="@+id/btnScanQr"
             android:layout_width="match_parent"
@@ -129,7 +124,6 @@
             android:textColor="#666"
             android:layout_marginBottom="10dp"/>
 
-        <!-- Danh sách lịch sử -->
         <ListView
             android:id="@+id/lvHistory"
             android:layout_width="match_parent"
@@ -138,7 +132,6 @@
             android:dividerHeight="10dp"/>
     </LinearLayout>
 
-    <!-- MÀN HÌNH WEBVIEW -->
     <LinearLayout
         android:id="@+id/webLayout"
         android:layout_width="match_parent"
@@ -146,7 +139,6 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- THANH TOP BAR CĂN GIỮA TUYỆT ĐỐI -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -166,7 +158,7 @@
                 android:layout_alignParentLeft="true"
                 android:layout_centerVertical="true"/>
                 
-            <!-- Chữ này sẽ được code Java đổi tên -->
+            <!-- ID tvTitle là nơi hiển thị tên Server -->
             <TextView
                 android:id="@+id/tvTitle"
                 android:layout_width="wrap_content"
