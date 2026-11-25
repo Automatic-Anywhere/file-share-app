@@ -30,6 +30,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.zxing.integration.android.IntentIntegrator;
@@ -37,6 +38,7 @@ import com.google.zxing.integration.android.IntentResult;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -60,16 +62,22 @@ public class MainActivity extends AppCompatActivity {
     private Button btnBackToolbar;
     private ValueCallback<Uri[]> filePathCallback;
 
-    private List<String> historyList = new ArrayList<>();
+    // Đối tượng lưu lịch sử
+    public static class HistoryItem {
+        String name;
+        String url;
+        HistoryItem(String name, String url) { this.name = name; this.url = url; }
+    }
+
+    private List<HistoryItem> historyList = new ArrayList<>();
     private Map<String, Boolean> onlineStatus = new HashMap<>();
-    private ArrayAdapter<String> historyAdapter;
+    private ArrayAdapter<HistoryItem> historyAdapter;
     private SharedPreferences prefs;
 
     private Handler pingHandler = new Handler(Looper.getMainLooper());
     private ExecutorService pingExecutor = Executors.newCachedThreadPool();
     private Runnable pingRunnable;
     
-    // Các biến quản lý trạng thái kết nối
     private boolean isClientMode = false;
     private String currentConnectedUrl = "";
     private Handler connectionCheckHandler = new Handler(Looper.getMainLooper());
@@ -88,11 +96,9 @@ public class MainActivity extends AppCompatActivity {
         clientLayout = findViewById(R.id.clientLayout);
         btnBackToolbar = findViewById(R.id.btnBack);
 
-        // --- MÀN HÌNH CHỌN ---
         findViewById(R.id.btnHost).setOnClickListener(v -> startHostMode());
         findViewById(R.id.btnClient).setOnClickListener(v -> showClientMode());
 
-        // --- MÀN HÌNH CLIENT ---
         findViewById(R.id.btnBackToSelection).setOnClickListener(v -> {
             clientLayout.setVisibility(View.GONE);
             selectionLayout.setVisibility(View.VISIBLE);
@@ -105,44 +111,42 @@ public class MainActivity extends AppCompatActivity {
             if (ip.isEmpty()) { Toast.makeText(this, "Vui lòng nhập IP", Toast.LENGTH_SHORT).show(); return; }
             if (!ip.startsWith("http")) ip = "http://" + ip;
             if (!ip.contains(":")) ip += ":8000";
-            connectToServer(ip);
+            promptServerNameAndConnect(ip, null);
         });
 
         findViewById(R.id.btnScanQr).setOnClickListener(v -> startQrScan());
 
-        // --- SETUP LỊCH SỬ ---
         ListView lvHistory = findViewById(R.id.lvHistory);
         loadHistory();
         
-        historyAdapter = new ArrayAdapter<String>(this, R.layout.item_history, historyList) {
+        historyAdapter = new ArrayAdapter<HistoryItem>(this, R.layout.item_history, historyList) {
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
                 if (convertView == null) convertView = getLayoutInflater().inflate(R.layout.item_history, parent, false);
                 
-                String url = getItem(position);
+                HistoryItem item = getItem(position);
+                TextView tvName = convertView.findViewById(R.id.tvName);
                 TextView tvUrl = convertView.findViewById(R.id.tvUrl);
+                Button btnEdit = convertView.findViewById(R.id.btnEdit);
                 Button btnDelete = convertView.findViewById(R.id.btnDelete);
                 View viewStatus = convertView.findViewById(R.id.viewStatus);
 
-                tvUrl.setText(url);
+                tvName.setText(item.name);
+                tvUrl.setText(item.url);
 
-                Boolean isOnline = onlineStatus.get(url);
+                Boolean isOnline = onlineStatus.get(item.url);
                 boolean isActuallyOnline = (isOnline != null && isOnline);
 
-                if (isActuallyOnline) {
-                    viewStatus.setBackgroundResource(R.drawable.circle_green);
-                } else {
-                    viewStatus.setBackgroundResource(R.drawable.circle_red);
-                }
+                viewStatus.setBackgroundResource(isActuallyOnline ? R.drawable.circle_green : R.drawable.circle_red);
                 
                 convertView.setOnClickListener(v -> {
-                    if (isActuallyOnline) {
-                        connectToServer(url);
-                    } else {
-                        Toast.makeText(MainActivity.this, "Lỗi: Server này hiện không hoạt động (Đèn đỏ)!", Toast.LENGTH_SHORT).show();
-                    }
+                    if (isActuallyOnline) connectToServer(item.url, false);
+                    else Toast.makeText(MainActivity.this, "Server đang offline!", Toast.LENGTH_SHORT).show();
                 });
+
+                // Nút Sửa (Cây bút)
+                btnEdit.setOnClickListener(v -> showEditDialog(position));
 
                 btnDelete.setOnClickListener(v -> {
                     historyList.remove(position);
@@ -154,18 +158,10 @@ public class MainActivity extends AppCompatActivity {
         };
         lvHistory.setAdapter(historyAdapter);
 
-        // --- NÚT QUAY LẠI TRÊN THANH CÔNG CỤ (Dùng chung cho cả Host và Client) ---
         btnBackToolbar.setOnClickListener(v -> {
-            if (isClientMode) {
-                // Nếu là Client: Chỉ ngắt kết nối và quay lại màn hình tham gia
-                disconnectClient();
-            } else {
-                // Nếu là Host: Tắt server, xoá dữ liệu
-                if (server != null) { 
-                    server.clearAllData(); 
-                    server.stop(); 
-                    server = null; 
-                }
+            if (isClientMode) disconnectClient();
+            else {
+                if (server != null) { server.clearAllData(); server.stop(); server = null; }
                 webView.loadUrl("about:blank");
                 webLayout.setVisibility(View.GONE);
                 selectionLayout.setVisibility(View.VISIBLE);
@@ -181,7 +177,6 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        // --- TIẾN TRÌNH KIỂM TRA SERVER ĐANG KẾT NỐI CÒN SỐNG KHÔNG ---
         connectionCheckRunnable = new Runnable() {
             @Override
             public void run() {
@@ -190,10 +185,8 @@ public class MainActivity extends AppCompatActivity {
                         boolean isOnline = false;
                         try {
                             URI uri = URI.create(currentConnectedUrl);
-                            String host = uri.getHost();
-                            int port = uri.getPort() == -1 ? 80 : uri.getPort();
                             Socket socket = new Socket();
-                            socket.connect(new InetSocketAddress(host, port), 2000);
+                            socket.connect(new InetSocketAddress(uri.getHost(), uri.getPort() == -1 ? 80 : uri.getPort()), 2000);
                             socket.close();
                             isOnline = true;
                         } catch (Exception e) { isOnline = false; }
@@ -206,9 +199,99 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                 }
-                connectionCheckHandler.postDelayed(this, 3000); // 3 giây kiểm tra 1 lần
+                connectionCheckHandler.postDelayed(this, 3000);
             }
         };
+    }
+
+    private void promptServerNameAndConnect(String url, String existingName) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Đặt tên cho Server");
+        
+        final EditText input = new EditText(this);
+        input.setHint("VD: Máy tính của Nam");
+        if (existingName != null) input.setText(existingName);
+        
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(50, 20, 50, 20);
+        container.addView(input);
+        builder.setView(container);
+
+        builder.setPositiveButton("Tiếp tục", (dialog, which) -> {
+            String name = input.getText().toString().trim();
+            if (name.isEmpty()) name = "Server không tên";
+            
+            // Lưu vào danh sách
+            boolean exists = false;
+            for (HistoryItem item : historyList) {
+                if (item.url.equals(url)) { exists = true; break; }
+            }
+            if (!exists) {
+                historyList.add(0, new HistoryItem(name, url));
+                if (historyList.size() > 10) historyList.remove(10);
+                saveHistory();
+                historyAdapter.notifyDataSetChanged();
+            }
+            connectToServer(url, false);
+        });
+        builder.setNegativeButton("Hủy", (dialog, which) -> dialog.cancel());
+        builder.show();
+    }
+
+    private void showEditDialog(int position) {
+        HistoryItem item = historyList.get(position);
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Chỉnh sửa thông tin");
+
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(50, 20, 50, 20);
+
+        EditText inputName = new EditText(this);
+        inputName.setHint("Tên thiết bị");
+        inputName.setText(item.name);
+        container.addView(inputName);
+
+        LinearLayout ipLayout = new LinearLayout(this);
+        ipLayout.setOrientation(LinearLayout.HORIZONTAL);
+        ipLayout.setPadding(0, 20, 0, 0);
+        
+        EditText inputIp = new EditText(this);
+        inputIp.setHint("Địa chỉ IP");
+        inputIp.setText(item.url);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        inputIp.setLayoutParams(params);
+        ipLayout.addView(inputIp);
+
+        Button btnCopyIp = new Button(this);
+        btnCopyIp.setText("Copy");
+        btnCopyIp.setOnClickListener(v -> {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("IP", inputIp.getText().toString());
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(clip);
+                Toast.makeText(this, "Đã copy IP!", Toast.LENGTH_SHORT).show();
+            }
+        });
+        ipLayout.addView(btnCopyIp);
+        
+        container.addView(ipLayout);
+        builder.setView(container);
+
+        builder.setPositiveButton("Lưu", (dialog, which) -> {
+            String newName = inputName.getText().toString().trim();
+            String newIp = inputIp.getText().toString().trim();
+            if (!newIp.startsWith("http")) newIp = "http://" + newIp;
+            if (!newIp.contains(":")) newIp += ":8000";
+            
+            historyList.set(position, new HistoryItem(newName, newIp));
+            saveHistory();
+            historyAdapter.notifyDataSetChanged();
+        });
+        builder.setNegativeButton("Hủy", null);
+        builder.show();
     }
 
     private void disconnectClient() {
@@ -219,27 +302,24 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("about:blank");
         webLayout.setVisibility(View.GONE);
         clientLayout.setVisibility(View.VISIBLE);
-        pingHandler.post(pingRunnable); // Bật lại ping danh sách
+        pingHandler.post(pingRunnable);
     }
 
     private void pingAllServers() {
-        for (String url : historyList) {
+        for (HistoryItem item : historyList) {
             pingExecutor.execute(() -> {
                 boolean isOnline = false;
                 try {
-                    URI uri = URI.create(url);
-                    String host = uri.getHost();
-                    int port = uri.getPort() == -1 ? 80 : uri.getPort();
-                    
+                    URI uri = URI.create(item.url);
                     Socket socket = new Socket();
-                    socket.connect(new InetSocketAddress(host, port), 2000);
+                    socket.connect(new InetSocketAddress(uri.getHost(), uri.getPort() == -1 ? 80 : uri.getPort()), 2000);
                     socket.close();
                     isOnline = true;
                 } catch (Exception e) { isOnline = false; }
 
                 boolean finalIsOnline = isOnline;
                 runOnUiThread(() -> {
-                    onlineStatus.put(url, finalIsOnline);
+                    onlineStatus.put(item.url, finalIsOnline);
                     historyAdapter.notifyDataSetChanged();
                 });
             });
@@ -250,7 +330,6 @@ public class MainActivity extends AppCompatActivity {
         try {
             isClientMode = false;
             btnBackToolbar.setText("⬅️ Đóng Server");
-            
             server = new FileShareServer(this, PORT);
             server.start();
             selectionLayout.setVisibility(View.GONE);
@@ -272,12 +351,10 @@ public class MainActivity extends AppCompatActivity {
         new IntentIntegrator(this).setPrompt("Quét mã QR máy Host").setOrientationLocked(false).initiateScan();
     }
 
-    private void connectToServer(String url) {
-        if (!historyList.contains(url)) {
-            historyList.add(0, url);
-            if (historyList.size() > 10) historyList.remove(10);
-            saveHistory();
-            historyAdapter.notifyDataSetChanged();
+    private void connectToServer(String url, boolean askName) {
+        if (askName) {
+            promptServerNameAndConnect(url, null);
+            return;
         }
 
         isClientMode = true;
@@ -291,7 +368,7 @@ public class MainActivity extends AppCompatActivity {
         
         pingHandler.removeCallbacks(pingRunnable);
         connectionCheckHandler.removeCallbacks(connectionCheckRunnable);
-        connectionCheckHandler.post(connectionCheckRunnable); // Bắt đầu check kết nối
+        connectionCheckHandler.post(connectionCheckRunnable);
     }
 
     private void loadHistory() {
@@ -299,13 +376,29 @@ public class MainActivity extends AppCompatActivity {
         try {
             JSONArray array = new JSONArray(json);
             historyList.clear();
-            for (int i = 0; i < array.length(); i++) historyList.add(array.getString(i));
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject obj = array.getJSONObject(i);
+                // Hỗ trợ đọc dữ liệu cũ (nếu có)
+                if (obj.has("name")) {
+                    historyList.add(new HistoryItem(obj.getString("name"), obj.getString("url")));
+                } else {
+                    String oldUrl = obj.getString("url");
+                    historyList.add(new HistoryItem("Server cũ", oldUrl));
+                }
+            }
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
     private void saveHistory() {
         JSONArray array = new JSONArray();
-        for (String url : historyList) array.put(url);
+        try {
+            for (HistoryItem item : historyList) {
+                JSONObject obj = new JSONObject();
+                obj.put("name", item.name);
+                obj.put("url", item.url);
+                array.put(obj);
+            }
+        } catch (JSONException e) { e.printStackTrace(); }
         prefs.edit().putString("history", array.toString()).apply();
     }
 
@@ -366,9 +459,7 @@ public class MainActivity extends AppCompatActivity {
                     dm.enqueue(request); 
                     Toast.makeText(this, "Đang tải: " + filename, Toast.LENGTH_SHORT).show(); 
                 }
-            } catch (Exception e) { 
-                Toast.makeText(this, "Lỗi tải file", Toast.LENGTH_LONG).show(); 
-            }
+            } catch (Exception e) { Toast.makeText(this, "Lỗi tải file", Toast.LENGTH_LONG).show(); }
         });
     }
 
@@ -380,7 +471,7 @@ public class MainActivity extends AppCompatActivity {
                 String scannedUrl = result.getContents();
                 if (!scannedUrl.startsWith("http")) scannedUrl = "http://" + scannedUrl;
                 if (!scannedUrl.matches(".*:\\d+.*")) scannedUrl += ":8000";
-                connectToServer(scannedUrl);
+                promptServerNameAndConnect(scannedUrl, null);
             }
             return;
         }
