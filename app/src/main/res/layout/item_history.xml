@@ -9,7 +9,6 @@
     android:elevation="2dp"
     android:layout_marginBottom="8dp">
 
-    <!-- Chấm tròn trạng thái -->
     <View
         android:id="@+id/viewStatus"
         android:layout_width="16dp"
@@ -17,21 +16,51 @@
         android:background="@drawable/circle_red"
         android:layout_marginRight="15dp" />
 
-    <!-- Đường dẫn URL (Nằm ở giữa) -->
-    <TextView
-        android:id="@+id/tvUrl"
+    <!-- Tên thiết bị và IP -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textSize="14sp"
-        android:textColor="#333"
-        android:text="http://192.168.1.15:8000" />
+        android:orientation="vertical">
 
-    <!-- Nút Xóa (Đã tăng kích thước để không bị che icon) -->
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#333"
+            android:text="Tên thiết bị" />
+
+        <TextView
+            android:id="@+id/tvUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="#888"
+            android:text="http://192.168.1.15:8000" />
+    </LinearLayout>
+
+    <!-- Nút Sửa -->
+    <Button
+        android:id="@+id/btnEdit"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:text="✏️"
+        android:padding="0dp"
+        android:insetLeft="0dp"
+        android:insetTop="0dp"
+        android:insetRight="0dp"
+        android:insetBottom="0dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:textSize="20sp"
+        android:layout_marginRight="5dp" />
+
+    <!-- Nút Xóa -->
     <Button
         android:id="@+id/btnDelete"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:text="🗑️"
         android:padding="0dp"
         android:insetLeft="0dp"
@@ -39,7 +68,6 @@
         android:insetRight="0dp"
         android:insetBottom="0dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:textSize="24sp"
-        android:layout_marginLeft="15dp" />
+        android:textSize="20sp" />
 
 </LinearLayout>
